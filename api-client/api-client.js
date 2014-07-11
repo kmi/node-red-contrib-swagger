@@ -23,7 +23,6 @@
 module.exports = function(RED) {
 
     var swagger = require('swagger-client');
-    var util = require("util");
     
     // The main node definition - most things happen in here
     function ApiClient(n) {
@@ -42,20 +41,20 @@ module.exports = function(RED) {
 
         var node = this;
 
-        if (this.swaggerClient === undefined || this.swaggerClient == null ||
-            this.swaggerClient.url != node.api) {
+        if (node.swaggerClient === undefined || node.swaggerClient == null ||
+            node.swaggerClient.url != node.api) {
 
-            this.swaggerClient = new swagger.SwaggerApi({
+            node.swaggerClient = new swagger.SwaggerApi({
                 url: node.api,
                 useJQuery: true,
                 success: function() {
                     if (this.ready) {
-                        util.log("[api-client] Client created for: " + this.url);
+                        node.log("[api-client] Client created for: " + node.api);
                     }
                 },
                 // define failure function
                 failure: function() {
-                    util.warn("[api-client] Unable to create client for: " + this.url);
+                    node.warn("[api-client] Unable to create client for: " + node.api);
                 }
             });
         }
@@ -70,7 +69,7 @@ module.exports = function(RED) {
                 try {
                     resp = {status: response.status, payload: JSON.parse(response.data)};
                 } catch (error) {
-                    console.error(error.stack);
+                    node.error(error.stack);
                     resp = {status: response.status, payload: response.data.toString()};
                 }
             }
