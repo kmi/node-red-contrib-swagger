@@ -25,7 +25,7 @@ module.exports = function(RED) {
     var swagger = require('swagger-client');
     
     // The main node definition - most things happen in here
-    function ApiClient(n) {
+    function SwaggerNode(n) {
         // Create a RED node
         RED.nodes.createNode(this,n);
     
@@ -49,12 +49,12 @@ module.exports = function(RED) {
                 useJQuery: true,
                 success: function() {
                     if (this.ready) {
-                        node.log("[api-client] Client created for: " + node.api);
+                        node.log("Client created for: " + node.api);
                     }
                 },
                 // define failure function
                 failure: function() {
-                    node.warn("[api-client] Unable to create client for: " + node.api);
+                    node.warn("Unable to create client for: " + node.api);
                 }
             });
         }
@@ -136,6 +136,6 @@ module.exports = function(RED) {
     
     // Register the node by name. This must be called before overriding any of the
     // Node functions.
-    RED.nodes.registerType("api-client",ApiClient);
+    RED.nodes.registerType("swagger",SwaggerNode);
     
 }

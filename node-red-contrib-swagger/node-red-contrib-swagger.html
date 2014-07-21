@@ -20,14 +20,14 @@
  @author <a href="mailto:carlos.pedrinaci@open.ac.uk">Carlos Pedrinaci</a> (KMi - The Open University)
 -->
 
-<script type="text/x-red" data-template-name="api-client">
+<script type="text/x-red" data-template-name="swagger">
    <!-- data-template-name identifies the node type this is for              -->
 
    <!-- Each of the following divs creates a field in the edit dialog.       -->
    <!-- Generally, there should be an input for each property of the node.   -->
    <!-- The for and id attributes identify the corresponding property        -->
    <!-- (with the 'node-input-' prefix).                                     -->
-   <!-- The available icon classes are defined Twitter Bootstrap glyp   hicons  -->
+   <!-- The available icon classes are defined Twitter Bootstrap glyphicons  -->
 
     <!-- Swagger description -->
     <div class="form-row">
@@ -101,14 +101,11 @@
 
 
 <!-- Next, some simple help text is provided for the node.                   -->
-<script type="text/x-red" data-help-name="api-client">
-   <!-- data-help-name identifies the node type this help is for             -->
-   <!-- This content appears in the Info sidebar when a node is selected     -->
-   <!-- The first <p> is used as the pop-up tool tip when hovering over a    -->
-   <!-- node in the palette.                                                 -->
-   <p>Generic Web API client node. This node allows to interact generically with several Web APIs
-   provided that a <a href="http://swagger.wordnik.com">Swagger definition</a> is available for it. </p>
-   <p>The input and output of this node depends on the actual Web API operation it is configured to use.</p>
+<script type="text/x-red" data-help-name="swagger">
+   <p>This node allows to interact generically with several Web APIs provided that a <a href="http://swagger.wordnik.com">Swagger definition</a>
+    is available for it. </p>
+   <p>The actual functionality and interface provided by this node will directly depend on the Web API operation it is configured to use. This node
+   will automatically load the configured Web API description and allow a user to use all the operations provided a the Web API this node is configured with.</p>
 </script>
 
 <!-- Finally, the node type is registered along with all of its properties   -->
@@ -409,7 +406,7 @@
         }
     }
 
-    RED.nodes.registerType('api-client',{
+    RED.nodes.registerType('swagger',{
         category: 'input',      // the palette category
         color:"#C0DEED",
         defaults: {             // defines the editable properties of the node
@@ -431,7 +428,7 @@
                 if (this.resource && this.method) {
                     return this.resource + "." + this.method;
                 } else {
-                    return "api-client";
+                    return "swagger";
                 }
             }
         },
