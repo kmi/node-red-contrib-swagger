@@ -10,20 +10,11 @@ Taken from Swagger's own documentation:
 
 ## How to Install
 
-In order to use this node you, indeed, need to have a working copy of NodeRed. The current version of the code has been tested with versions 0.78+.
-For NodeRed to pick up the node, you need either to include it within NodeRed, e.g., `{NodeRed Folder}/nodes/node-red-nodes`, or point to it from NodeRed `settings.js` file.
-
-This node relies on node.js client for swagger [swagger-client](https://www.npmjs.org/package/swagger-client)
-
-Install swagger-client:
+Run the following command in the root directory of your Node-RED install
 
 ```
-npm install swagger-client
+npm install node-red-contrib-swagger
 ```
-
-Until we sort things out there is an additional requirement for this node to work. 
-You need to download `swagger.js` and `shred.bundle.js` into `{NodeRed Folder}/public/swagger`. 
-You can find both files at `https://github.com/wordnik/swagger-js` in the `lib` folder. This is simply necessary for the Web browser to be able to automatically parse API descriptions and provide an adaptive form when creating new nodes. 
 
 ## Testing the Node
 
