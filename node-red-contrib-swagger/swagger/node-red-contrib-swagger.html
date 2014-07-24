@@ -152,7 +152,6 @@
             }
 
             function updateApiTip() {
-                console.log("updateApiTip");
                 var tipText = "Provide the URL of a Swagger description to load the node. <br/>For example: http://petstore.swagger.wordnik.com/api/api-docs";
                 if(form.swagger != undefined && form.swagger.ready === true) {
                     if (form.swagger.info != null) {
@@ -176,7 +175,6 @@
             }
 
             function updateResourcesList(selectedResource) {
-                console.log("updateResourcesList");
                 var resources = null;
                 if(form.swagger != undefined && form.swagger.ready === true) {
                     // Populate available resources
@@ -186,7 +184,6 @@
             }
 
             function updateResourceTip(selectedResource) {
-                console.log("updateResourceTip");
                 var tipText = "No help information for the resource selected.";
                 if (form.swagger != undefined && form.swagger.ready === true && selectedResource != undefined && selectedResource !== "") {
                     var apiResource = form.swagger.apis[selectedResource];
@@ -202,7 +199,6 @@
             }
 
             function updateMethodsList(selectedResource, selectedMethod) {
-                console.log("updateMethodsList");
                 var methods = null;
                 if(form.swagger != undefined && form.swagger.ready === true && selectedResource != undefined && selectedResource !== "") {
                     var apiResource = form.swagger.apis[selectedResource];
@@ -215,7 +211,6 @@
             }
 
             function updateMethodTip(selectedResource, selectedMethod) {
-                console.log("updateMethodTip");
                 var tipText = "No help information for the method selected.";
                 if (form.swagger != undefined && form.swagger.ready === true && selectedResource != undefined && selectedResource !== ""
                         && selectedMethod != undefined && selectedMethod !== "") {
@@ -242,7 +237,6 @@
             }
 
             function updateRequestTypes(selectedResource, selectedMethod, intype) {
-                console.log("updateRequestTypes");
                 var consumes = null;
                 if (form.swagger != undefined && form.swagger.ready === true && selectedResource != undefined && selectedResource !== ""
                         && selectedMethod != undefined && selectedMethod !== "") {
@@ -259,7 +253,6 @@
             }
 
             function updateResponseTypes(selectedResource, selectedMethod, outtype) {
-                console.log("updateResponseTypes");
                 var produces = null;
                 if (form.swagger != undefined && form.swagger.ready === true && selectedResource != undefined && selectedResource !== ""
                         && selectedMethod != undefined && selectedMethod !== "") {
@@ -277,7 +270,8 @@
 
             // API Updated
             $("#node-input-api").change(function(){
-                var apiUrl = $("#node-input-api").val();
+                var apiUrl = $("#node-input-api").val().trim();
+                $("#node-input-api").val(apiUrl);
                 // The last check is necessary to prevent updates after the form is created.
                 if (apiUrl != undefined && apiUrl !== "" && (form.swagger == undefined || apiUrl !== form.swagger.url)) {
                     createClient(apiUrl);
@@ -310,8 +304,6 @@
             });
 
             function populateForm(resource, method, intype, outtype) {
-        console.log("Populate form with " + resource + " " + method + " " + intype + " " + outtype );
-
                 if (form.swagger != undefined && form.swagger.ready === true) {
                     updateApiTip();
                     updateResourcesList(resource);
@@ -434,10 +426,6 @@
             // Create or use the swagger client and populate the form
             createClient(node.api, node.resource, node.method, node.intype, node.outtype);
             updateVisibility();
-//
-//            $("#node-input-api").change();
-//            $("#node-input-resource").change();
-//            $("#node-input-method").change();
         }
     });
 </script>
