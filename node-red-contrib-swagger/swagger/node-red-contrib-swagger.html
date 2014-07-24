@@ -1,0 +1,443 @@
+<!--
+ Copyright (c) 2014. Knowledge Media Institute - The Open University
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<!--
+ NodeRed node with support for generic invocation of Web APIs based on Swagger
+
+ @author <a href="mailto:carlos.pedrinaci@open.ac.uk">Carlos Pedrinaci</a> (KMi - The Open University)
+-->
+
+<script type="text/x-red" data-template-name="swagger">
+   <!-- data-template-name identifies the node type this is for              -->
+
+   <!-- Each of the following divs creates a field in the edit dialog.       -->
+   <!-- Generally, there should be an input for each property of the node.   -->
+   <!-- The for and id attributes identify the corresponding property        -->
+   <!-- (with the 'node-input-' prefix).                                     -->
+   <!-- The available icon classes are defined Twitter Bootstrap glyphicons  -->
+
+    <!-- Swagger description -->
+    <div class="form-row">
+        <label for="node-input-api"><i class="icon-globe"></i> API</label>
+        <input type="text" id="node-input-api" placeholder="URL of a Swagger description">
+        <!--  <input type="text" id="node-input-api" placeholder="URL of a Swagger description"> -->
+        <div class="form-tips" id="node-input-api" style="margin-top:5px">
+            <div>
+                Provide the URL of a Swagger description to load the node.
+                 <br />
+                For example: http://petstore.swagger.wordnik.com/api/api-docs
+            </div>
+        </div>
+    </div>
+
+    <!-- The Resource -->
+    <div class="form-row" id="node-input-resource-row">
+        <label for="node-input-resource"><i class="icon-tag"></i> Resource</label>
+        <select type="text" id="node-input-resource" style="display: inline-block; vertical-align: middle; width:60%;">
+         <!-- <select type="text" id="node-input-resource" style="display: inline-block; vertical-align: middle; width:60%;"> -->
+            <option selected disabled value="" >Choose a Resource</option>
+        </select>
+        <div class="form-tips" id="node-input-resource" style="margin-top:5px">
+            <div>Select one of the resources offered by the API.</div>
+        </div>
+    </div>
+
+    <!-- The Method -->
+    <div class="form-row" id="node-input-method-row">
+        <label for="node-input-method"><i class="icon-tag"></i> Method</label>
+        <select type="text" id="node-input-method" style="display: inline-block; vertical-align: middle; width:60%;">
+        <!--  <select type="text" id="node-input-method" style="display: inline-block; vertical-align: middle; width:60%;"> -->
+            <option selected disabled value="">Choose a Method</option>
+        </select>
+        <div class="form-tips" id="node-input-method" style="margin-top:5px">
+            <div>Select one of the methods offered by the API.</div>
+        </div>
+    </div>
+
+    <!-- Request Content Type -->
+    <div class="form-row" id="node-input-intype-row">
+        <label for="node-input-intype"><i class="icon-tag"></i> Request Content Type</label>
+        <select type="text" id="node-input-intype" style="display: inline-block; vertical-align: middle; width:60%;">
+            <option selected disabled value="">Choose a Content Type</option>
+        </select>
+        <div class="form-tips" id="node-input-intype" style="margin-top:5px">
+            <span>You may choose a content type for the input. If unspecified it will be "application/json".</span>
+        </div>
+    </div>
+
+    <!-- Response Content Type -->
+    <div class="form-row" id="node-input-outtype-row">
+        <label for="node-input-outtype"><i class="icon-tag"></i> Response Content Type</label>
+        <select type="text" id="node-input-outtype" style="display: inline-block; vertical-align: middle; width:60%;">
+            <option selected disabled value="">Choose a Content Type</option>
+        </select>
+        <div class="form-tips" id="node-input-outtype" style="margin-top:5px">
+            <span>You may choose a content type for the response. If unspecified it will be "application/json".</span>
+        </div>
+    </div>
+
+    <!-- By convention, most nodes have a 'name' property. The following div -->
+    <!-- provides the necessary field. Should always be the last option      -->
+
+    <div class="form-row">
+        <label for="node-input-name"><i class="icon-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+
+</script>
+
+
+<!-- Next, some simple help text is provided for the node.                   -->
+<script type="text/x-red" data-help-name="swagger">
+   <p>This node allows to interact generically with several Web APIs provided that a <a href="http://swagger.wordnik.com">Swagger definition</a>
+    is available for it. </p>
+   <p>The actual functionality and interface provided by this node will directly depend on the Web API operation it is configured to use. This node
+   will automatically load the configured Web API description and allow a user to use all the operations provided a the Web API this node is configured with.</p>
+</script>
+
+<!-- Finally, the node type is registered along with all of its properties   -->
+<!-- The example below shows a small subset of the properties that can be set-->
+
+<script src='swagger/shred.bundle.js'></script>
+<script src='swagger/swagger.js'></script>
+<script type="text/javascript">
+
+    RED.nodes.registerType('swagger',{
+        category: 'input',      // the palette category
+        color:"#C0DEED",
+        defaults: {             // defines the editable properties of the node
+            api: {value:"", required:true},   //  along with default values.
+            resource: {value:"", required: true},
+            method: {value:"", required:true},
+            intype: {value: "", required:false},
+            outtype: {value: "", required:false},
+            name: {value:""}
+        },
+        inputs:1,               // set the number of inputs - only 0 or 1
+        outputs:1,              // set the number of outputs - 0 to n
+        // set the icon (held in icons dir below where you save the node)
+        icon: "white-globe.png",     // saved in  icons/myicon.png
+        label: function() {     // sets the default label contents
+            if (this.name) {
+                return this.name;
+            } else {
+                if (this.resource && this.method) {
+                    return this.resource + "." + this.method;
+                } else {
+                    return "swagger";
+                }
+            }
+        },
+        labelStyle: function() { // sets the class to apply to the label
+            return this.name ? "node_label_italic" : "";
+        },
+        oneditprepare: function() {
+            var form = this;
+
+            function getSelectedMethod() {
+                return $("#node-input-method option:selected").val();
+            }
+
+            function updateApiTip() {
+                console.log("updateApiTip");
+                var tipText = "Provide the URL of a Swagger description to load the node. <br/>For example: http://petstore.swagger.wordnik.com/api/api-docs";
+                if(form.swagger != undefined && form.swagger.ready === true) {
+                    if (form.swagger.info != null) {
+                        var title = form.swagger.info.title;
+                        var description = form.swagger.info.description;
+                        if (title != undefined && title !== "" && description != undefined && description != "") {
+                            tipText = "<b>" + title + "</b>: <br/><i>" + description + "</i>";
+                        } else {
+                            if (title != undefined && title !== "") {
+                                tipText = title;
+                            } else if (description != undefined && description != "") {
+                                tipText = description;
+                            } else {
+                                tipText = "Loaded description for <i>" + form.swagger.basePath + "</i>";
+                            }
+                        }
+                    }
+                }
+                tipText = "<div>" + tipText + "</div>";
+                $("#node-input-api.form-tips div").replaceWith(tipText);
+            }
+
+            function updateResourcesList(selectedResource) {
+                console.log("updateResourcesList");
+                var resources = null;
+                if(form.swagger != undefined && form.swagger.ready === true) {
+                    // Populate available resources
+                    resources = form.swagger.apisArray;
+                }
+                populateSelectList($("#node-input-resource"), selectedResource, resources, "Choose a Resource", "name");
+            }
+
+            function updateResourceTip(selectedResource) {
+                console.log("updateResourceTip");
+                var tipText = "No help information for the resource selected.";
+                if (form.swagger != undefined && form.swagger.ready === true && selectedResource != undefined && selectedResource !== "") {
+                    var apiResource = form.swagger.apis[selectedResource];
+                    if (apiResource != undefined) {
+                        var description = apiResource.description;
+                        if (description != undefined && description !== "") {
+                            tipText = description;
+                        }
+                    }
+                }
+                tipText = "<div>" + tipText + "</div>";
+                $("#node-input-resource.form-tips div").replaceWith(tipText);
+            }
+
+            function updateMethodsList(selectedResource, selectedMethod) {
+                console.log("updateMethodsList");
+                var methods = null;
+                if(form.swagger != undefined && form.swagger.ready === true && selectedResource != undefined && selectedResource !== "") {
+                    var apiResource = form.swagger.apis[selectedResource];
+                    if (apiResource != undefined) {
+                        // Populate available Methods
+                        methods = form.swagger.apis[selectedResource].operationsArray;
+                    }
+                }
+                populateSelectList($("#node-input-method"), selectedMethod, methods, "Choose a Method", "nickname");
+            }
+
+            function updateMethodTip(selectedResource, selectedMethod) {
+                console.log("updateMethodTip");
+                var tipText = "No help information for the method selected.";
+                if (form.swagger != undefined && form.swagger.ready === true && selectedResource != undefined && selectedResource !== ""
+                        && selectedMethod != undefined && selectedMethod !== "") {
+                    var apiResource = form.swagger.apis[selectedResource];
+                    if (apiResource != undefined) {
+                        var apiMethod = apiResource.operations[selectedMethod];
+                        if (apiMethod != undefined) {
+                            var summary = apiMethod.summary;
+                            var notes = apiMethod.notes;
+                            if (summary != undefined && summary !== "" && notes != undefined && notes !== "") {
+                                tipText = "<b>" + summary + "</b>: <br/><i>" + notes + "</i>";
+                            } else {
+                                if (summary != null) {
+                                    tipText = summary;
+                                } else {
+                                    tipText = notes;
+                                }
+                            }
+                        }
+                    }
+                }
+                tipText = "<div>" + tipText + "</div>";
+                $("#node-input-method.form-tips div").replaceWith(tipText);
+            }
+
+            function updateRequestTypes(selectedResource, selectedMethod, intype) {
+                console.log("updateRequestTypes");
+                var consumes = null;
+                if (form.swagger != undefined && form.swagger.ready === true && selectedResource != undefined && selectedResource !== ""
+                        && selectedMethod != undefined && selectedMethod !== "") {
+                    var apiResource = form.swagger.apis[selectedResource];
+                    if (apiResource != undefined) {
+                        var apiMethod = apiResource.operations[selectedMethod];
+                        if (apiMethod != undefined) {
+                            // populate request content types
+                            consumes = form.swagger.apis[selectedResource].operations[selectedMethod].consumes;
+                        }
+                    }
+                }
+                populateSelectList($("#node-input-intype"), intype, consumes, "Choose a Content Type");
+            }
+
+            function updateResponseTypes(selectedResource, selectedMethod, outtype) {
+                console.log("updateResponseTypes");
+                var produces = null;
+                if (form.swagger != undefined && form.swagger.ready === true && selectedResource != undefined && selectedResource !== ""
+                        && selectedMethod != undefined && selectedMethod !== "") {
+                    var apiResource = form.swagger.apis[selectedResource];
+                    if (apiResource != undefined) {
+                        var apiMethod = apiResource.operations[selectedMethod];
+                        if (apiMethod != undefined) {
+                            // populate response content types
+                            produces = form.swagger.apis[selectedResource].operations[selectedMethod].produces;
+                        }
+                    }
+                }
+                populateSelectList($("#node-input-outtype"), outtype, produces, "Choose a Content Type");
+            }
+
+            // API Updated
+            $("#node-input-api").change(function(){
+                var apiUrl = $("#node-input-api").val();
+                // The last check is necessary to prevent updates after the form is created.
+                if (apiUrl != undefined && apiUrl !== "" && (form.swagger == undefined || apiUrl !== form.swagger.url)) {
+                    createClient(apiUrl);
+                    updateApiTip();
+                    updateResourcesList();
+                    updateVisibility();
+                }
+            });
+
+            // Resource Updated
+            $("#node-input-resource").change(function() {
+                var selectedResource = $("#node-input-resource option:selected").val();
+                if (selectedResource != undefined && selectedResource !== "") {
+                    updateResourceTip(selectedResource);
+                    updateMethodsList(selectedResource);
+                    updateVisibility();
+                }
+            });
+
+            // Method Updated
+            $("#node-input-method").change(function() {
+                var selectedResource = $("#node-input-resource option:selected").val();
+                var selectedMethod = $("#node-input-method option:selected").val();
+                if (selectedResource != undefined && selectedResource !== "" && selectedMethod != undefined && selectedMethod !== "") {
+                    updateMethodTip(selectedResource, selectedMethod);
+                    updateRequestTypes(selectedResource, selectedMethod);
+                    updateResponseTypes(selectedResource, selectedMethod);
+                    updateVisibility();
+                }
+            });
+
+            function populateForm(resource, method, intype, outtype) {
+        console.log("Populate form with " + resource + " " + method + " " + intype + " " + outtype );
+
+                if (form.swagger != undefined && form.swagger.ready === true) {
+                    updateApiTip();
+                    updateResourcesList(resource);
+                    updateResourceTip(resource);
+                    updateMethodsList(resource, method);
+                    updateMethodTip(resource, method);
+                    updateRequestTypes(resource, method, intype);
+                    updateResponseTypes(resource, method, outtype);
+                }
+                updateVisibility();
+            }
+
+            function populateSelectList(jQuerySelector, selectedValue, availableValues, helpText, valueProperty) {
+                // Ensure we have been given a jquery selector
+                if (jQuerySelector != undefined) {
+                    jQuerySelector.empty();
+
+                    if ( selectedValue == undefined || selectedValue === "" ) {
+                        // add the default select option
+                        var option = $('<option></option>')
+                                .prop("disabled", true)
+                                .prop("selected", true)
+                                .attr("value", "")
+                                .text(helpText);
+
+                        jQuerySelector.append(option);
+                    }
+
+                    // Add all the values
+                    if (availableValues != undefined) {
+                        for (var i=0; i< availableValues.length; i++) {
+                            var value;
+                            if (valueProperty != undefined && valueProperty !== "") {
+                                value = availableValues[i][valueProperty];
+                            } else {
+                                value = availableValues[i];
+                            }
+
+                            var option = $('<option></option>')
+                                    .attr("value", value)
+                                    .text(value);
+
+                            if (value === selectedValue) {
+                                option.prop("selected", true);
+
+                            } else {
+                                option.prop("selected", false);
+                            }
+                            jQuerySelector.append(option);
+                        }
+                    }
+                }
+            }
+
+            /*
+             * Update the form on the basis of the content available
+             * */
+            function updateVisibility() {
+                if (form.swagger != undefined && form.swagger.ready === true) {
+                    // Show the resource
+                    $("#node-input-resource-row").show();
+                    // Check method
+                    var resource = $("#node-input-resource option:selected").val();
+                    if (resource != undefined && resource !== "") {
+                        // Show the method
+                        $("#node-input-method-row").show();
+                        // Check content types
+                        var method = $("#node-input-method option:selected").val();
+                        if (method != undefined && method !== "") {
+                            if ($("#node-input-intype option").length > 2) {
+                                // Show request content type
+                                $("#node-input-intype-row").show();
+                            } else {
+                                $("#node-input-intype-row").hide();
+                            }
+                            if ($("#node-input-outtype option").length > 2) {
+                                // Show response content type
+                                $("#node-input-outtype-row").show();
+                            } else {
+                                $("#node-input-outtype-row").hide();
+                            }
+                        } else {
+                            $("#node-input-intype-row").hide();
+                            $("#node-input-outtype-row").hide();
+                        }
+                    } else {
+                        $("#node-input-method-row").hide();
+                    }
+                } else {
+                    $("#node-input-resource-row").hide();
+                    $("#node-input-method-row").hide();
+                    $("#node-input-intype-row").hide();
+                    $("#node-input-outtype-row").hide();
+                }
+            }
+
+            function createClient(apiUrl, resource, method, intype, outtype) {
+
+                if (apiUrl != undefined && apiUrl !== "") {
+//                    if (form.swagger == undefined || form.swagger.url !== apiUrl) {
+                        form.swagger = new SwaggerApi({
+                            url: apiUrl,
+                            useJQuery: true,
+                            success: function () {
+                                if (this.ready === true) {
+                                    RED.notify("Loaded API Description: " + this.url, "success");
+                                    populateForm(resource, method, intype, outtype);
+                                }
+                            },
+                            failure: function () {
+                                RED.notify("<strong>Error</strong>: unable to load API description: " + this.url, "error");
+                            }
+                        });
+                    }
+//                }
+            }
+
+            // Obtain the values for creating the client (takes place before the form is populated)
+            var node = RED.nodes.node(this.id);
+            // Create or use the swagger client and populate the form
+            createClient(node.api, node.resource, node.method, node.intype, node.outtype);
+            updateVisibility();
+//
+//            $("#node-input-api").change();
+//            $("#node-input-resource").change();
+//            $("#node-input-method").change();
+        }
+    });
+</script>

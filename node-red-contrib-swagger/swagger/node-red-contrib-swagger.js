@@ -22,6 +22,7 @@
 
 module.exports = function(RED) {
 
+    var fs = require("fs");
     var swagger = require('swagger-client');
     
     // The main node definition - most things happen in here
@@ -41,12 +42,11 @@ module.exports = function(RED) {
 
         var node = this;
 
-        if (node.swaggerClient === undefined || node.swaggerClient == null ||
-            node.swaggerClient.url != node.api) {
+        if (node.swaggerClient == undefined || node.swaggerClient.url !== node.api) {
 
             node.swaggerClient = new swagger.SwaggerApi({
                 url: node.api,
-                useJQuery: true,
+//                useJQuery: true,
                 success: function() {
                     if (this.ready) {
                         node.log("Client created for: " + node.api);
@@ -137,5 +137,22 @@ module.exports = function(RED) {
     // Register the node by name. This must be called before overriding any of the
     // Node functions.
     RED.nodes.registerType("swagger",SwaggerNode);
+
+    // Expose internal javascript
+    RED.httpAdmin.get('/swagger/:file', function(req, res){
+
+        if (req.params.file.indexOf("..") > -1) {
+            res.send("<html><head></head><body>Unable to access the file requested.</body></html>");
+        } else {
+            fs.readFile(require('path').resolve(__dirname, "../node_modules/swagger-client/lib/" + req.params.file),function(err,data) {
+                if (err) {
+                    console.log(err);
+                    res.send("<html><head></head><body>Error reading the file: <br />" + err + "</body></html>");
+                } else {
+                    res.set('Content-Type', 'text/javascript').send(data);
+                }
+            });
+        }
+    });
     
 }
