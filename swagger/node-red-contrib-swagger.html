@@ -20,7 +20,47 @@
  @author <a href="mailto:carlos.pedrinaci@open.ac.uk">Carlos Pedrinaci</a> (KMi - The Open University)
 -->
 
-<script type="text/x-red" data-template-name="swagger">
+ <!-- The credentials form -->
+<script type="text/x-red" data-template-name="swagger credentials">
+    <div class="form-row">
+        <label for="node-config-input-authType" style="display: inline-block; vertical-align: middle; width:35%;"><i class="fa fa-bookmark"></i> Authentication Type</label>
+        <select type="text" id="node-input-authType" style="vertical-align: middle; width:60%;">
+            <option selected disabled value="">Choose a Authentication Type</option>
+            <option value="basicAuth">HTTP Basic Authentication</option>
+            <option value="apiKey">API Key</option>
+            <!--<option value="oauth2">OAuth 2</option>-->
+        </select>
+    </div>
+    <div class="form-row">
+        <label for="node-config-input-user" style="width:35%;"><i class="fa fa-user"></i> Username</label>
+        <input type="text" id="node-config-input-user" placeholder="Username" style="vertical-align: middle; width:60%;">
+    </div>
+    <div class="form-row">
+        <label for="node-config-input-password" style="width:35%;"><i class="fa fa-lock"></i> Password</label>
+        <input type="password" id="node-config-input-password" placeholder="Password or API Key" style="vertical-align: middle; width:60%;">
+    </div>
+    <div class="form-row">
+        <label for="node-config-input-name" style="width:35%;"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-config-input-name" placeholder="Name" style="vertical-align: middle; width:60%;">
+    </div>
+</script>
+
+<script type="text/javascript">
+    RED.nodes.registerType('swagger credentials',{
+        category: 'config',
+        color:"#C0DEED",
+        credentials: {
+            authType: {type: "text"},
+            user: {type:"text"},
+            password: {type: "password"}
+        },
+        label: function() {
+            return this.authType + " credentials for " + this.name;  //TODO: we should keep the service Id somehow
+        }
+    });
+</script>
+
+<script type="text/x-red" data-template-name="swagger api">
    <!-- data-template-name identifies the node type this is for              -->
 
    <!-- Each of the following divs creates a field in the edit dialog.       -->
@@ -89,6 +129,12 @@
         </div>
     </div>
 
+    <!-- Authentication Credentials -->
+    <div class="form-row" id="node-input-credentials-row">
+        <label for="node-input-credentials"><i class="fa fa-bookmark"></i> Credentials</label>
+        <input type="text" id="node-input-credentials">
+    </div>
+
     <!-- By convention, most nodes have a 'name' property. The following div -->
     <!-- provides the necessary field. Should always be the last option      -->
 
@@ -101,7 +147,7 @@
 
 
 <!-- Next, some simple help text is provided for the node.                   -->
-<script type="text/x-red" data-help-name="swagger">
+<script type="text/x-red" data-help-name="swagger api">
    <p>This node allows to interact generically with several Web APIs provided that a <a href="http://swagger.wordnik.com">Swagger definition</a>
     is available for it. </p>
    <p>The actual functionality and interface provided by this node will directly depend on the Web API operation it is configured to use. This node
@@ -115,7 +161,7 @@
 <script src='swagger/swagger.js'></script>
 <script type="text/javascript">
 
-    RED.nodes.registerType('swagger',{
+    RED.nodes.registerType('swagger api',{
         category: 'function',      // the palette category
         color:"#C0DEED",
         defaults: {             // defines the editable properties of the node
@@ -124,6 +170,7 @@
             method: {value:"", required:true},
             intype: {value: "", required:false},
             outtype: {value: "", required:false},
+            credentials: { type:"swagger credentials",required:false},
             name: {value:""}
         },
         inputs:1,               // set the number of inputs - only 0 or 1
@@ -137,7 +184,7 @@
                 if (this.resource && this.method) {
                     return this.resource + "." + this.method;
                 } else {
-                    return "swagger";
+                    return "swagger api";
                 }
             }
         },

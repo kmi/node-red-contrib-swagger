@@ -24,9 +24,22 @@ module.exports = function(RED) {
 
     var fs = require("fs");
     var swagger = require('swagger-client');
-    
+
+    function SwaggerCredentialsNode(n) {
+        RED.nodes.createNode(this,n);
+    }
+
+    RED.nodes.registerType("swagger credentials",SwaggerCredentialsNode,{
+        credentials: {
+            authType: {type: "text"},
+            user: {type:"text"},
+            password: {type: "password"}
+        }
+    });
+
+
     // The main node definition - most things happen in here
-    function SwaggerNode(n) {
+    function SwaggerApiNode(n) {
         // Create a RED node
         RED.nodes.createNode(this,n);
     
@@ -39,6 +52,9 @@ module.exports = function(RED) {
         this.intype = n.intype;
         // Response content type. By default the engine will fall back to "application/json"
         this.outtype = n.outtype;
+
+        // Authentication credentials
+        this.credentials = n.credentials;
 
         var node = this;
 
@@ -92,6 +108,14 @@ module.exports = function(RED) {
             node.error(resp);
         };
 
+        // Auth schemes required for all operations within that api
+//        swagger.apis['apiName'].api.authSchemes
+
+        // Can be overriden by the operation
+
+
+
+
 
         this.on("input", function(msg) {
             if (node.swaggerClient.ready === true) {
@@ -136,7 +160,7 @@ module.exports = function(RED) {
     
     // Register the node by name. This must be called before overriding any of the
     // Node functions.
-    RED.nodes.registerType("swagger",SwaggerNode);
+    RED.nodes.registerType("swagger api",SwaggerApiNode);
 
     // Expose internal javascript
     RED.httpAdmin.get('/swagger/:file', function(req, res){
