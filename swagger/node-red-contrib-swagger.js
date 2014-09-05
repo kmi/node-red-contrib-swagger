@@ -22,9 +22,6 @@
 
 module.exports = function(RED) {
 
-    var fs = require("fs");
-    var swagger = require('swagger-client');
-
     function SwaggerCredentialsNode(n) {
         RED.nodes.createNode(this,n);
     }
@@ -54,9 +51,11 @@ module.exports = function(RED) {
         this.outtype = n.outtype;
 
         // Authentication credentials
-        this.credentials = n.credentials;
+        this.authconfig = n.authconfig;
+        this.authentication = RED.nodes.getNode(this.authconfig);
 
         var node = this;
+        var swagger = require('swagger-client');
 
         if (node.swaggerClient == undefined || node.swaggerClient.url !== node.api) {
 
@@ -66,6 +65,9 @@ module.exports = function(RED) {
                 success: function() {
                     if (this.ready) {
                         node.log("Client created for: " + node.api);
+                        // We should setup authentication here once and for all but authentication is
+                        // handled as a global variable accross all swagger clients by swagger.js for now
+                        // TODO: Fix this when swagger.js updates this
                     }
                 },
                 // define failure function
@@ -99,7 +101,7 @@ module.exports = function(RED) {
                 node.error("Error invoking API. No response obtained.");
             } else {
                 try {
-                    resp = {status: response.status, payload: JSON.parse(response.data)};
+                    resp = {status: response.status, payload: response.data.toString()};
                 } catch (error) {
                     console.error(error.stack);
                     resp = {status: response.status, payload: response.data.toString()};
@@ -108,16 +110,75 @@ module.exports = function(RED) {
             node.error(resp);
         };
 
-        // Auth schemes required for all operations within that api
-//        swagger.apis['apiName'].api.authSchemes
+        var setupAuthorization = function() {
+            // Figure out if we need authentication and if necessary deal with it
+            // The current implementation of Swagger.js has authorizations as a global variable.
+            // Clean it and set it up at every invocation ...
+            // TODO: Fix it if swagger.js provides a better approach to this
 
-        // Can be overriden by the operation
+            for (auth in swagger.authorizations.authz) {
+                swagger.authorizations.remove(auth);
+            }
 
+            // Auth schemes required for all operations within that api
+            // node.swaggerClient.apis['apiName'].api.authSchemes
 
+            // Can be overriden by the operation
+            // node.swaggerClient.apis['apiName'].operations['operationName'].authorizations
 
+            var authSchemes = node.swaggerClient.apis[node.resource].api.authSchemes;
+            var authSchemesKeys = Object.keys(authSchemes);
+            if (authSchemesKeys.length > 0) {
+                // Authentication may be necessary for the API
+                // Obtain the right scheme for the operation
+
+                // By default assume the first authentication for the top level resource
+                var schemeName = authSchemesKeys[0];
+
+                var opAuthSchemesKeys;
+                var opAuths = node.swaggerClient.apis[node.resource].operations[node.method].authorizations;
+                if (opAuths != undefined) {
+                    opAuthSchemesKeys = Object.keys(opAuths);
+                    if (opAuthSchemesKeys.length > 0) {
+                        // The operation specifies its authentication
+                        schemeName = opAuthSchemesKeys[0];
+                    }
+                }
+
+                // Get the actual scheme to use. We assume here that only one applies.
+                var scheme = authSchemes[schemeName][0];
+
+                // ensure we have the same kind of credentials necessary
+                var credentials = node.authentication.credentials;
+
+                if (credentials != undefined && scheme != undefined && credentials.authType === scheme.type) {
+                    console.log("Adding auth");
+                    // Add the credentials to the client
+                    switch(scheme.type) {
+                        case "apiKey":
+                            console.log("Adding api key");
+                            swagger.authorizations.add(node.id, new swagger.ApiKeyAuthorization(scheme.keyname, credentials.password, scheme.passAs));
+                            break;
+
+                        case "basicAuth":
+                            // The first parameter for the password authorization is unclear to me (and not used by node.swagger-client?)
+                            swagger.authorizations.add(node.id, new swagger.PasswordAuthorization(scheme.type, credentials.user, credentials.password));
+                            break;
+
+                        //TODO: handle oauth2
+                    }
+                } else if (credentials != undefined && credentials.authType !== scheme.type) {
+                    // We can't provide the credentials. Warn?
+                    node.warn("This API requires authentication of type " + scheme.type + " . No appropriate credentials have been provided. Please reconfigure the node.");
+                }
+            }
+        }
 
 
         this.on("input", function(msg) {
+            // Deal with authorisation if necessary
+            setupAuthorization();
+
             if (node.swaggerClient.ready === true) {
                 // Set the options
                 var opts = {};
@@ -135,15 +196,16 @@ module.exports = function(RED) {
                 if (msg.payload === undefined || msg.payload === '' ) {
                     params = {};
                 } else {
-                    // Parse as json if the input is to be considered json or leave as it is
-                    if (opts["requestContentType"] != undefined && opts["requestContentType"] !== "application/json") {
-                        params = msg.payload;
-                    } else {
+                    if (typeof msg.payload === "string") {
+                        // It's a string: parse it as JSON
                         params = JSON.parse(msg.payload);
+                    } else {
+                        // Already an object
+                        params = msg.payload;
                     }
                 }
 
-                // Disable until issue 101 on swagger.js is sorted
+                // Disable until issue #101 on swagger.js is sorted
 //                node.swaggerClient['apis'][node.resource][node.method](params, opts, responseFunction, errorFunction);
                 node.swaggerClient['apis'][node.resource][node.method](params, responseFunction, errorFunction);
             } else {
@@ -164,6 +226,8 @@ module.exports = function(RED) {
 
     // Expose internal javascript
     RED.httpAdmin.get('/swagger/:file', function(req, res){
+
+        var fs = require("fs");
 
         if (req.params.file.indexOf("..") > -1) {
             res.send("<html><head></head><body>Unable to access the file requested.</body></html>");

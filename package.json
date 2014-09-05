@@ -3,7 +3,7 @@
     "version"       : "0.1.0",
     "description"   : "A Node-RED node able to invoke Web APIs generically based on a Swagger description",
     "dependencies"  : {
-        "swagger-client"   : "2.0.*"
+        "swagger-client"   : "2.0.36"
     },
     "repository" : {
         "type":"git",

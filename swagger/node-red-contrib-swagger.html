@@ -24,19 +24,19 @@
 <script type="text/x-red" data-template-name="swagger credentials">
     <div class="form-row">
         <label for="node-config-input-authType" style="display: inline-block; vertical-align: middle; width:35%;"><i class="fa fa-bookmark"></i> Authentication Type</label>
-        <select type="text" id="node-input-authType" style="vertical-align: middle; width:60%;">
-            <option selected disabled value="">Choose a Authentication Type</option>
+        <select type="text" id="node-config-input-authType" style="vertical-align: middle; width:60%;">
+            <option selected disabled value="">Choose an Authentication Type</option>
             <option value="basicAuth">HTTP Basic Authentication</option>
             <option value="apiKey">API Key</option>
             <!--<option value="oauth2">OAuth 2</option>-->
         </select>
     </div>
-    <div class="form-row">
-        <label for="node-config-input-user" style="width:35%;"><i class="fa fa-user"></i> Username</label>
+    <div class="form-row" id="node-config-input-user-row">
+        <label id="node-config-input-user-label" for="node-config-input-user" style="width:35%;"><i class="fa fa-user"></i> Username</label>
         <input type="text" id="node-config-input-user" placeholder="Username" style="vertical-align: middle; width:60%;">
     </div>
-    <div class="form-row">
-        <label for="node-config-input-password" style="width:35%;"><i class="fa fa-lock"></i> Password</label>
+    <div class="form-row" id="node-config-input-password-row">
+        <label id="node-config-input-password-label" for="node-config-input-password" style="width:35%;"><i class="fa fa-lock"></i> Password</label>
         <input type="password" id="node-config-input-password" placeholder="Password or API Key" style="vertical-align: middle; width:60%;">
     </div>
     <div class="form-row">
@@ -49,13 +49,49 @@
     RED.nodes.registerType('swagger credentials',{
         category: 'config',
         color:"#C0DEED",
+        defaults: {             // defines the editable properties of the node
+            name: {value:""}
+        },
         credentials: {
             authType: {type: "text"},
             user: {type:"text"},
             password: {type: "password"}
         },
         label: function() {
-            return this.authType + " credentials for " + this.name;  //TODO: we should keep the service Id somehow
+            return this.name||this.authType + " credentials for ...";  //TODO: we should keep the service Id somehow
+        },
+        oneditprepare: function() {
+            function updateForm(selectedAuth) {
+                switch (selectedAuth) {
+                    case "apiKey":
+                        var label = '<label id="node-config-input-password-label" for="node-config-input-password" style="width:35%;"><i class="fa fa-lock"></i> API Key</label>';
+                        $("#node-config-input-password-label").replaceWith(label);
+                        $("#node-config-input-password").attr("placeholder","API Key");
+                        $("#node-config-input-user-row").hide();
+                        $("#node-config-input-password-row").show();
+                        break;
+
+                    case "basicAuth":
+                        var label = '<label id="node-config-input-password-label" for="node-config-input-password" style="width:35%;"><i class="fa fa-lock"></i> Password</label>';
+                        $("#node-config-input-password-label").replaceWith(label);
+                        $("#node-config-input-password").attr("placeholder","API Password");
+                        $("#node-config-input-password-row").show();
+                        $("#node-config-input-user-row").show();
+                        break;
+
+                    default :
+                        $("#node-config-input-user-row").hide();
+                        $("#node-config-input-password-row").hide();
+                }
+            }
+
+            // Auth type Updated
+            $("#node-config-input-authType").change(function() {
+                var selectedAuth = $("#node-config-input-authType option:selected").val();
+                updateForm(selectedAuth);
+            });
+
+            updateForm($("#node-config-input-authType option:selected").val());
         }
     });
 </script>
@@ -130,9 +166,9 @@
     </div>
 
     <!-- Authentication Credentials -->
-    <div class="form-row" id="node-input-credentials-row">
-        <label for="node-input-credentials"><i class="fa fa-bookmark"></i> Credentials</label>
-        <input type="text" id="node-input-credentials">
+    <div class="form-row" id="node-input-authconfig-row">
+        <label for="node-input-authconfig"><i class="fa fa-bookmark"></i> Credentials</label>
+        <input type="text" id="node-input-authconfig">
     </div>
 
     <!-- By convention, most nodes have a 'name' property. The following div -->
@@ -170,7 +206,7 @@
             method: {value:"", required:true},
             intype: {value: "", required:false},
             outtype: {value: "", required:false},
-            credentials: { type:"swagger credentials",required:false},
+            authconfig: {type:"swagger credentials", required:false},
             name: {value:""}
         },
         inputs:1,               // set the number of inputs - only 0 or 1
