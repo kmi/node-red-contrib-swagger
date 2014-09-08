@@ -441,11 +441,46 @@
                 }
             }
 
+            function requiredAuthentication(swaggerClient, resource, method) {
+                var scheme;
+                if (swaggerClient != undefined && swaggerClient.ready === true) {
+                    // Auth schemes definitions
+                    var authSchemes = swaggerClient.authSchemes;
+                    var authSchemesKeys = Object.keys(authSchemes);
+                    if (authSchemesKeys.length > 0) {
+                        // Authentications schemes are defined
+
+                        // Find out the scheme needed. Check the operation and then the resource.
+                        // Operations override authentication from resources
+                        // We assume only the first one applies
+
+                        var opAuths = swaggerClient.apis[resource].operations[method].authorizations;
+                        if (opAuths != undefined) {
+                            var opAuthSchemesKeys = Object.keys(opAuths);
+                            if (opAuthSchemesKeys.length > 0) {
+                                // The operation specifies its authentication
+                                scheme = authSchemes[opAuthSchemesKeys[0]];
+                            }
+                        } else {
+                            // Get the resources authentication requirements instead
+                            var resAuths = swaggerClient.apis[resource].api.authorizations;
+                            var authSchemesKeys = Object.keys(resAuths);
+                            if (authSchemesKeys.length > 0) {
+                                // The resource specifies its authentication
+                                scheme = authSchemes[resAuths[0]];
+                            }
+                        }
+                    }
+                }
+                return scheme;
+            }
+
             /*
              * Update the form on the basis of the content available
              * */
-            function updateVisibility() {
-                if (form.swagger != undefined && form.swagger.ready === true) {
+            function updateVisibility(resource, method) {
+                var url = $("#node-input-api").val();
+                if (url != undefined && url !== "" && form.swagger != undefined && form.swagger.ready === true) {
                     // Show the resource
                     $("#node-input-resource-row").show();
                     // Check method
@@ -456,6 +491,7 @@
                         // Check content types
                         var method = $("#node-input-method option:selected").val();
                         if (method != undefined && method !== "") {
+                            // Deal with content types
                             if ($("#node-input-intype option").length > 2) {
                                 // Show request content type
                                 $("#node-input-intype-row").show();
@@ -468,18 +504,29 @@
                             } else {
                                 $("#node-input-outtype-row").hide();
                             }
+                            // Deal with authentication
+                            if (requiredAuthentication(form.swagger, resource, method) != undefined) {
+                                $("#node-input-authconfig-row").show();
+                            } else {
+                                $("#node-input-authconfig-row").hide();
+                            }
                         } else {
                             $("#node-input-intype-row").hide();
                             $("#node-input-outtype-row").hide();
+                            $("#node-input-authconfig-row").hide();
                         }
                     } else {
                         $("#node-input-method-row").hide();
+                        $("#node-input-intype-row").hide();
+                        $("#node-input-outtype-row").hide();
+                        $("#node-input-authconfig-row").hide();
                     }
                 } else {
                     $("#node-input-resource-row").hide();
                     $("#node-input-method-row").hide();
                     $("#node-input-intype-row").hide();
                     $("#node-input-outtype-row").hide();
+                    $("#node-input-authconfig-row").hide();
                 }
             }
 

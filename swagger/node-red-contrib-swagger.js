@@ -110,6 +110,40 @@ module.exports = function(RED) {
             node.error(resp);
         };
 
+        var requiredAuthentication = function(swaggerClient, resource, method) {
+            var scheme;
+            if (swaggerClient != undefined && swaggerClient.ready === true) {
+                // Auth schemes definitions
+                var authSchemes = swaggerClient.apis[resource].api.authSchemes;
+                var authSchemesKeys = Object.keys(authSchemes);
+                if (authSchemesKeys.length > 0) {
+                    // Authentications schemes are defined
+
+                    // Find out the scheme needed. Check the operation and then the resource.
+                    // Operations override authentication from resources
+                    // We assume only the first one applies
+
+                    var opAuths = swaggerClient.apis[resource].operations[method].authorizations;
+                    if (opAuths != undefined) {
+                        var opAuthSchemesKeys = Object.keys(opAuths);
+                        if (opAuthSchemesKeys.length > 0) {
+                            // The operation specifies its authentication
+                            scheme = authSchemes[opAuthSchemesKeys[0]];
+                        }
+                    } else {
+                        // Get the resources authentication requirements instead
+                        var resAuths = swaggerClient.apis[resource].api.authorizations;
+                        var authSchemesKeys = Object.keys(resAuths);
+                        if (authSchemesKeys.length > 0) {
+                            // The resource specifies its authentication
+                            scheme = authSchemes[resAuths[0]];
+                        }
+                    }
+                }
+            }
+            return scheme;
+        }
+
         var setupAuthorization = function() {
             // Figure out if we need authentication and if necessary deal with it
             // The current implementation of Swagger.js has authorizations as a global variable.
@@ -126,28 +160,8 @@ module.exports = function(RED) {
             // Can be overriden by the operation
             // node.swaggerClient.apis['apiName'].operations['operationName'].authorizations
 
-            var authSchemes = node.swaggerClient.apis[node.resource].api.authSchemes;
-            var authSchemesKeys = Object.keys(authSchemes);
-            if (authSchemesKeys.length > 0) {
-                // Authentication may be necessary for the API
-                // Obtain the right scheme for the operation
-
-                // By default assume the first authentication for the top level resource
-                var schemeName = authSchemesKeys[0];
-
-                var opAuthSchemesKeys;
-                var opAuths = node.swaggerClient.apis[node.resource].operations[node.method].authorizations;
-                if (opAuths != undefined) {
-                    opAuthSchemesKeys = Object.keys(opAuths);
-                    if (opAuthSchemesKeys.length > 0) {
-                        // The operation specifies its authentication
-                        schemeName = opAuthSchemesKeys[0];
-                    }
-                }
-
-                // Get the actual scheme to use. We assume here that only one applies.
-                var scheme = authSchemes[schemeName][0];
-
+            var scheme = requiredAuthentication(swagger, node.resource, node.method);
+            if (scheme != undefined) {
                 // ensure we have the same kind of credentials necessary
                 var credentials = node.authentication.credentials;
 
