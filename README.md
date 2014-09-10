@@ -30,7 +30,7 @@ Currently the node provides support for:
  - Parsing and invoking Swagger 1.0+ description
  - Content negotiation both for Request and Response content types
  - Authentication via Basic HTTP Auth and API Key 
- - Invocation for those APIs that do not require authentication. 
+ - Invocation of APIs (except those with other non-supported authentication mechanisms). 
  
 ### Issues
 Currently the node presents a couple of known issues from the underlying libraries being used.
