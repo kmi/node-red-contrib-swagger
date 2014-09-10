@@ -77,7 +77,7 @@ module.exports = function(RED) {
             });
         }
 
-        // This assumes a JSON result for now
+        // Handle the response
         var responseFunction = function(response) {
             var resp;
             if (response == undefined ) {
@@ -85,7 +85,15 @@ module.exports = function(RED) {
                 node.warn("API successfully invoked but no response obtained.");
             } else {
                 try {
-                    resp = {status: response.status, payload: JSON.parse(response.data)};
+                    // Check response content type and handle accordingly
+                    // If unspecified we assume json
+                    if (node.outtype != undefined && node.outtype !== "" && node.outtype !== "application/json") {
+                        // Not JSON, treat as a string
+                        resp = {status: response.status, payload: response.data.toString()};
+                    } else {
+                        resp = {status: response.status, payload: JSON.parse(response.data)};
+                    }
+
                 } catch (error) {
                     node.error(error.stack);
                     resp = {status: response.status, payload: response.data.toString()};
@@ -149,16 +157,9 @@ module.exports = function(RED) {
             // The current implementation of Swagger.js has authorizations as a global variable.
             // Clean it and set it up at every invocation ...
             // TODO: Fix it if swagger.js provides a better approach to this
-
             for (auth in swagger.authorizations.authz) {
                 swagger.authorizations.remove(auth);
             }
-
-            // Auth schemes required for all operations within that api
-            // node.swaggerClient.apis['apiName'].api.authSchemes
-
-            // Can be overriden by the operation
-            // node.swaggerClient.apis['apiName'].operations['operationName'].authorizations
 
             var scheme = requiredAuthentication(swagger, node.resource, node.method);
             if (scheme != undefined) {
@@ -219,9 +220,10 @@ module.exports = function(RED) {
                     }
                 }
 
-                // Disable until issue #101 on swagger.js is sorted
+                // Go indirectly until issue #101 on swagger.js is sorted
 //                node.swaggerClient['apis'][node.resource][node.method](params, opts, responseFunction, errorFunction);
-                node.swaggerClient['apis'][node.resource][node.method](params, responseFunction, errorFunction);
+                node.swaggerClient.apis[node.resource].operations[node.method]["do"](params, opts, responseFunction, errorFunction);
+
             } else {
                 node.warn("API client not ready. Is the Web API accessible?");
             }

@@ -23,7 +23,24 @@ For example you may want to use the prototypical example `http://petstore.swagge
 
 ## Status
 
-The node is at a rather early stage but is already usable. Currently the node provides support for invocation for those APIs that do not require authentication. We shall be adding this functionality soon. Support for choosing the request and response content types is on the way, though not finalised.
+The node is still at an early stage but is already working. 
+
+### Features
+Currently the node provides support for:
+ - Parsing and invoking Swagger 1.0+ description
+ - Content negotiation both for Request and Response content types
+ - Authentication via Basic HTTP Auth and API Key 
+ - invocation for those APIs that do not require authentication. 
+ 
+### Issues
+Currently the node presents a couple of known issues from the underlying libraries being used.
+- This node makes indirectly use of Shred for handling http requests. Unfortunately this library seems to have a dependency issue with the Orion editing library which is used by the NodeRed's Function node to edit functions code. As a result the editing of Functions  may not work (i.e., the form will not pop up) when this node is also under use. The functionality of both function nodes and swagger nodes still is ensured but it is certainly inconvenient not being able edit functions. We are currently looking into this to figure out a way around it. 
+- The parsing of Authentication details does not seem to be done correctly by the swagger-library and therefore authentication details specified at a resource level will not be adequately detected. We expect a solution will soon be implemented at the level of the [Swagger javascript client](https://github.com/wordnik/swagger-js) which will   
+
+### Future Features
+We shall be providing the following functionality soon:
+- More detailed dynamic documentation of the API being used by the node so as to better help users in figuring out what the request message should look like.
+- Support for OAuth 2.0 authentication.
 
 License
 -------
