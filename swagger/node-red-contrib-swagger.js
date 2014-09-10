@@ -137,6 +137,7 @@ module.exports = function(RED) {
                         if (opAuthSchemesKeys.length > 0) {
                             // The operation specifies its authentication
                             scheme = authSchemes[opAuthSchemesKeys[0]];
+                            scheme.name = opAuthSchemesKeys[0];
                         }
                     } else {
                         // Get the resources authentication requirements instead
@@ -145,6 +146,7 @@ module.exports = function(RED) {
                         if (authSchemesKeys.length > 0) {
                             // The resource specifies its authentication
                             scheme = authSchemes[resAuths[0]];
+                            scheme.name = resAuths[0];
                         }
                     }
                 }
@@ -161,23 +163,21 @@ module.exports = function(RED) {
                 swagger.authorizations.remove(auth);
             }
 
-            var scheme = requiredAuthentication(swagger, node.resource, node.method);
+            var scheme = requiredAuthentication(node.swaggerClient, node.resource, node.method);
             if (scheme != undefined) {
                 // ensure we have the same kind of credentials necessary
                 var credentials = node.authentication.credentials;
 
                 if (credentials != undefined && scheme != undefined && credentials.authType === scheme.type) {
-                    console.log("Adding auth");
                     // Add the credentials to the client
                     switch(scheme.type) {
-                        case "apiKey":
-                            console.log("Adding api key");
-                            swagger.authorizations.add(node.id, new swagger.ApiKeyAuthorization(scheme.keyname, credentials.password, scheme.passAs));
+                        case 'apiKey':
+                            swagger.authorizations.add(scheme.name, new swagger.ApiKeyAuthorization(scheme.keyname, credentials.password, scheme.passAs));
                             break;
 
-                        case "basicAuth":
+                        case 'basicAuth':
                             // The first parameter for the password authorization is unclear to me (and not used by node.swagger-client?)
-                            swagger.authorizations.add(node.id, new swagger.PasswordAuthorization(scheme.type, credentials.user, credentials.password));
+                            swagger.authorizations.add(scheme.name, new swagger.PasswordAuthorization(scheme.type, credentials.user, credentials.password));
                             break;
 
                         //TODO: handle oauth2
@@ -220,9 +220,11 @@ module.exports = function(RED) {
                     }
                 }
 
-                // Go indirectly until issue #101 on swagger.js is sorted
+                // Use "do" until issue #101 on swagger.js is sorted
+//                node.swaggerClient['apis'][node.resource][node.method](params, responseFunction, errorFunction);
 //                node.swaggerClient['apis'][node.resource][node.method](params, opts, responseFunction, errorFunction);
-                node.swaggerClient.apis[node.resource].operations[node.method]["do"](params, opts, responseFunction, errorFunction);
+                node.swaggerClient['apis'][node.resource]['operations'][node.method]["do"](params, opts, responseFunction, errorFunction);
+
 
             } else {
                 node.warn("API client not ready. Is the Web API accessible?");
