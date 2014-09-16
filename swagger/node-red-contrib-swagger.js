@@ -96,7 +96,6 @@ module.exports = function(RED) {
 
                 } catch (error) {
                     node.error(error.stack);
-                    resp = {status: response.status, payload: response.data.toString()};
                 }
             }
             node.send(resp);
@@ -109,13 +108,13 @@ module.exports = function(RED) {
                 node.error("Error invoking API. No response obtained.");
             } else {
                 try {
+                    node.error("Status: " + response.status + " Message: " + response.data.toString());
                     resp = {status: response.status, payload: response.data.toString()};
                 } catch (error) {
-                    console.error(error.stack);
-                    resp = {status: response.status, payload: response.data.toString()};
+                    node.error(error.stack);
                 }
             }
-            node.error(resp);
+            node.send(resp);
         };
 
         var requiredAuthentication = function(swaggerClient, resource, method) {
