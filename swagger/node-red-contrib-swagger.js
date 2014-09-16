@@ -108,7 +108,7 @@ module.exports = function(RED) {
                 node.error("Error invoking API. No response obtained.");
             } else {
                 try {
-                    node.error("Status: " + response.status + " Message: " + response.data.toString());
+                    node.warn("API invocation returned an error. Status: " + response.status + " Message: " + response.data.toString());
                     resp = {status: response.status, payload: response.data.toString()};
                 } catch (error) {
                     node.error(error.stack);
