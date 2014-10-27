@@ -63,7 +63,7 @@ module.exports = function(RED) {
         var domain = require('domain');
         var d = domain.create();
         d.on('error', function(err) {
-            node.warn(err);
+            console.log(err);
         });
 
         if (node.api != undefined && (node.swaggerClient == undefined || node.swaggerClient.url !== node.api)) {
