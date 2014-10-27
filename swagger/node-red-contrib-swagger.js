@@ -59,23 +59,33 @@ module.exports = function(RED) {
         var node = this;
         var swagger = require('swagger-client');
 
+        // Handling of errors
+        var domain = require('domain');
+        var d = domain.create();
+        d.on('error', function(err) {
+            node.warn(err);
+        });
+
         if (node.api != undefined && (node.swaggerClient == undefined || node.swaggerClient.url !== node.api)) {
 
-            node.swaggerClient = new swagger.SwaggerApi({
-                url: node.api,
-//                    useJQuery: true,
-                success: function () {
-                    if (this.ready) {
-                        node.log("Client created for: " + node.api);
-                        // We should setup authentication here once and for all but authentication is
-                        // handled as a global variable accross all swagger clients by swagger.js for now
-                        // TODO: Fix this when swagger.js updates authentication handling
+            // Use a domain to catch inner exceptions
+            d.run(function() {
+                node.swaggerClient = new swagger.SwaggerApi({
+                    url: node.api,
+    //                    useJQuery: true,
+                    success: function () {
+                        if (this.ready) {
+                            node.log("Client created for: " + node.api);
+                            // We should setup authentication here once and for all but authentication is
+                            // handled as a global variable accross all swagger clients by swagger.js for now
+                            // TODO: Fix this when swagger.js updates authentication handling
+                        }
+                    },
+                    // define failure function
+                    failure: function () {
+                        node.warn("Unable to create client for: " + node.api);
                     }
-                },
-                // define failure function
-                failure: function () {
-                    node.warn("Unable to create client for: " + node.api);
-                }
+                });
             });
         }
 
