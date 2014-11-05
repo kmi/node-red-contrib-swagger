@@ -33,8 +33,7 @@ Currently the node provides support for:
  - Invocation of APIs (except those with other non-supported authentication mechanisms). 
  
 ### Issues
-Currently the node presents a couple of known issues from the underlying libraries being used.
-- This node makes indirectly use of Shred for handling http requests. Unfortunately this library seems to have a dependency issue with the Orion editing library which is used by the NodeRed's Function node to edit functions code. As a result the editing of Functions  may not work (i.e., the form will not pop up) when this node is also under use. The functionality of both function nodes and swagger nodes still is ensured but it is certainly inconvenient not being able edit functions. We are currently looking into this to figure out a way around it. 
+Currently the node presents a couple of known issues from the underlying libraries being used. 
 - The parsing of Authentication details does not seem to be done correctly by the swagger-library and therefore authentication details specified at a resource level will not be adequately detected. We expect a solution will soon be implemented at the level of the [Swagger javascript client](https://github.com/wordnik/swagger-js) which would resolve the problem altogether.
 
 ### Future Features
