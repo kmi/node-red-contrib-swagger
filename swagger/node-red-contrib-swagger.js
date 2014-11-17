@@ -149,7 +149,7 @@ module.exports = function(RED) {
                     msg.payload = {};
                 }
 
-                node.warn("API invocation returned an error. Status: " + msg.status + " Message: " + msg.data.toString());
+                node.warn("API invocation returned an error. Status: " + msg.status + " Message: " + msg.payload.toString());
             }
 
             node.send(msg);
