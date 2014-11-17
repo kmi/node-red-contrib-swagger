@@ -41,7 +41,7 @@ module.exports = function(RED) {
     function SwaggerApiNode(n) {
         // Create a RED node
         RED.nodes.createNode(this,n);
-    
+
         // Store local copies of the node configuration (as defined in the .html)
         this.api = n.api;
         this.resource = n.resource;
@@ -72,7 +72,6 @@ module.exports = function(RED) {
             d.run(function() {
                 node.swaggerClient = new swagger.SwaggerApi({
                     url: node.api,
-    //                    useJQuery: true,
                     success: function () {
                         if (this.ready) {
                             node.log("Client created for: " + node.api);
@@ -91,40 +90,69 @@ module.exports = function(RED) {
 
         // Handle the response
         var responseFunction = function(response) {
-            var resp;
+            var msg = {};
+
             if (response == undefined ) {
                 // In principle this branch should not be executed but in case
                 node.warn("API successfully invoked but no response obtained.");
             } else {
-                // Check response content type and handle accordingly
-                // If unspecified we assume json
-                if (node.outtype != undefined && node.outtype !== "" && node.outtype !== "application/json") {
-                    // Not JSON, treat as a string
-                    resp = {status: response.status, payload: response.data.toString()};
+                if (response.hasOwnProperty("status")) {
+                    msg.status = response.status;
                 } else {
-                    try {
-                        resp = {status: response.status, payload: JSON.parse(response.data)};
-                    } catch(error) {
-                        node.warn("Ignoring output as it was expected to be JSON and was not: " +  response.data);
-                        return;
+                    // Should not occur in principle
+                    msg.status = 500;
+                }
+
+                if (response.hasOwnProperty("data")) {
+                    // If the response is empty just pass it on
+                    if (response.data.length === 0) {
+                        msg.payload = {};
+                    } else {
+                        // Check response content type and handle accordingly
+                        // If unspecified we assume json
+                        if (node.outtype != undefined && node.outtype !== "" && node.outtype !== "application/json") {
+                            // Not JSON, treat as a string
+                            msg.payload = response.data.toString();
+                        } else {
+                            // Parse the response
+                            try {
+                                msg.payload = JSON.parse(response.data);
+                            } catch (error) {
+                                node.warn("Ignoring output as it was expected to be JSON and was not: '" + response.data + "'");
+                                return;
+                            }
+                        }
                     }
+                } else {
+                    msg.payload = {};
                 }
             }
-            node.send(resp);
+            node.send(msg);
         };
 
         var errorFunction = function(response) {
-            var resp;
+            var msg = {};
             if (response == undefined ) {
                 // In principle this branch should not be executed but in case
                 node.error("Error invoking API. No response obtained.");
             } else {
-                if (response.hasOwnProperty("data") && response.hasOwnProperty("status")) {
-                    node.warn("API invocation returned an error. Status: " + response.status + " Message: " + response.data.toString());
-                    resp = {status: response.status, payload: response.data.toString()};
+                if (response.hasOwnProperty("status")) {
+                    msg.status = response.status;
+                } else {
+                    // Should not occur in principle
+                    msg.status = 500;
                 }
+
+                if (response.hasOwnProperty("data")) {
+                    msg.payload = response.data.toString();
+                } else {
+                    msg.payload = {};
+                }
+
+                node.warn("API invocation returned an error. Status: " + msg.status + " Message: " + msg.data.toString());
             }
-            node.send(resp);
+
+            node.send(msg);
         };
 
         var requiredAuthentication = function(swaggerClient, resource, method) {
@@ -247,19 +275,19 @@ module.exports = function(RED) {
                 node.warn("API client not ready. Is the Web API accessible?");
             }
         });
-    
+
         this.on("close", function() {
             // Called when the node is shutdown - eg on redeploy.
             // Allows ports to be closed, connections dropped etc.
             // eg: this.client.disconnect();
         });
     }
-    
-    // Register the node by name. This must be called before overriding any of the
-    // Node functions.
+
+// Register the node by name. This must be called before overriding any of the
+// Node functions.
     RED.nodes.registerType("swagger api",SwaggerApiNode);
 
-    // Expose internal javascript
+// Expose internal javascript
     RED.httpAdmin.get('/swagger/:file', function(req, res){
 
         var fs = require("fs");
@@ -277,5 +305,5 @@ module.exports = function(RED) {
             });
         }
     });
-    
+
 }
