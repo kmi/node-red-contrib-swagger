@@ -33,7 +33,7 @@ Currently the node provides support for:
  - Invocation of APIs (except those with other non-supported authentication mechanisms). 
  
 ### Issues
-Currently the node presents a couple of known issues from the underlying libraries being used. 
+Currently the node presents one issue due to an underlying library being used. 
 - The parsing of Authentication details does not seem to be done correctly by the swagger-library and therefore authentication details specified at a resource level will not be adequately detected. We expect a solution will soon be implemented at the level of the [Swagger javascript client](https://github.com/wordnik/swagger-js) which would resolve the problem altogether.
 
 ### Future Features
