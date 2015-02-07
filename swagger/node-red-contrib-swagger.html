@@ -20,6 +20,70 @@
  @author <a href="mailto:carlos.pedrinaci@open.ac.uk">Carlos Pedrinaci</a> (KMi - The Open University)
 -->
 
+<script type="text/x-red" data-template-name="swagger api">
+    <div class="form-row">
+        <label for="node-config-input-apiUrl"><i class="fa fa-globe"></i> URL</label>
+        <input type="text" id="node-config-input-apiUrl" placeholder="URL of a Swagger description">
+    </div>
+
+    <div class="form-tips" id="node-input-apiUrl" style="margin-top:5px">
+        <div>
+            Provide the URL of a Swagger description to load the node.
+             <br />
+            For example: http://petstore.swagger.wordnik.com/api/api-docs
+        </div>
+    </div>
+
+    <div class="form-row">
+        <label for="node-config-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-config-input-name" placeholder="API name">
+    </div>
+</script>
+
+<script type="text/javascript">
+    RED.nodes.registerType('swagger api',{
+        category: 'config',
+        defaults: {
+            apiUrl: {required:true},
+            name: {value:"",required:false}
+        },
+        label: function() {
+            return this.name ? this.name : this.apiUrl;
+        }
+//        oneditprepare: function() {
+//            $.getJSON('swagger-api/'+this.id,function(data) {
+//                if (data.apiUrl) {
+//                    $('#node-config-input-remoteurl').val(data.apiUrl);
+//                }
+//                if (data.name) {
+//                    $('#node-config-input-name').val(data.name);
+//                }
+//            });
+//        },
+//        oneditsave: function() {
+//            var details = {};
+//            details.apiUrl = $('#node-config-input-remoteurl').val().trim();
+//            details.name = $('#node-config-input-name').val().trim();
+//
+//            $.ajax({
+//                url: 'swagger-api/'+this.id,
+//                type: 'POST',
+//                data: details,
+//                success:function(result){}
+//            });
+//        },
+//        ondelete: function() {
+//            $.ajax({
+//                url: 'swagger-api/'+this.id,
+//                type: 'DELETE',
+//                success: function(result) {}
+//            });
+//        }
+
+    });
+</script>
+
+
  <!-- The credentials form -->
 <script type="text/x-red" data-template-name="swagger credentials">
     <div class="form-row">
@@ -58,7 +122,7 @@
             password: {type: "password"}
         },
         label: function() {
-            return this.name||this.authType + " credentials for ...";  //TODO: we should keep the service Id somehow
+            return this.name||this.authType + " credentials for ...";  //TODO: we should keep the service Id
         },
         oneditprepare: function() {
             function updateForm(selectedAuth) {
@@ -96,7 +160,7 @@
     });
 </script>
 
-<script type="text/x-red" data-template-name="swagger api">
+<script type="text/x-red" data-template-name="swagger client">
    <!-- data-template-name identifies the node type this is for              -->
 
    <!-- Each of the following divs creates a field in the edit dialog.       -->
@@ -107,16 +171,8 @@
 
     <!-- Swagger description -->
     <div class="form-row">
-        <label for="node-input-api"><i class="icon-globe"></i> API</label>
-        <input type="text" id="node-input-api" placeholder="URL of a Swagger description">
-        <!--  <input type="text" id="node-input-api" placeholder="URL of a Swagger description"> -->
-        <div class="form-tips" id="node-input-api" style="margin-top:5px">
-            <div>
-                Provide the URL of a Swagger description to load the node.
-                 <br />
-                For example: http://petstore.swagger.wordnik.com/api/api-docs
-            </div>
-        </div>
+        <label for="node-input-apiConfig"><i class="icon-globe"></i> API</label>
+        <input type="text" id="node-input-apiConfig">
     </div>
 
     <!-- The Resource -->
@@ -144,31 +200,31 @@
     </div>
 
     <!-- Request Content Type -->
-    <div class="form-row" id="node-input-intype-row">
-        <label for="node-input-intype"><i class="icon-tag"></i> Request Content Type</label>
-        <select type="text" id="node-input-intype" style="display: inline-block; vertical-align: middle; width:60%;">
+    <div class="form-row" id="node-input-inType-row">
+        <label for="node-input-inType"><i class="icon-tag"></i> Request Content Type</label>
+        <select type="text" id="node-input-inType" style="display: inline-block; vertical-align: middle; width:60%;">
             <option selected disabled value="">Choose a Content Type</option>
         </select>
-        <div class="form-tips" id="node-input-intype" style="margin-top:5px">
+        <div class="form-tips" id="node-input-inType" style="margin-top:5px">
             <span>You may choose a content type for the input. If unspecified it will be "application/json".</span>
         </div>
     </div>
 
     <!-- Response Content Type -->
-    <div class="form-row" id="node-input-outtype-row">
-        <label for="node-input-outtype"><i class="icon-tag"></i> Response Content Type</label>
-        <select type="text" id="node-input-outtype" style="display: inline-block; vertical-align: middle; width:60%;">
+    <div class="form-row" id="node-input-outType-row">
+        <label for="node-input-outType"><i class="icon-tag"></i> Response Content Type</label>
+        <select type="text" id="node-input-outType" style="display: inline-block; vertical-align: middle; width:60%;">
             <option selected disabled value="">Choose a Content Type</option>
         </select>
-        <div class="form-tips" id="node-input-outtype" style="margin-top:5px">
+        <div class="form-tips" id="node-input-outType" style="margin-top:5px">
             <span>You may choose a content type for the response. If unspecified it will be "application/json".</span>
         </div>
     </div>
 
     <!-- Authentication Credentials -->
-    <div class="form-row" id="node-input-authconfig-row">
-        <label for="node-input-authconfig"><i class="fa fa-bookmark"></i> Credentials</label>
-        <input type="text" id="node-input-authconfig">
+    <div class="form-row" id="node-input-authConfig-row">
+        <label for="node-input-authConfig"><i class="fa fa-bookmark"></i> Credentials</label>
+        <input type="text" id="node-input-authConfig">
     </div>
 
     <!-- By convention, most nodes have a 'name' property. The following div -->
@@ -183,7 +239,7 @@
 
 
 <!-- Next, some simple help text is provided for the node.                   -->
-<script type="text/x-red" data-help-name="swagger api">
+<script type="text/x-red" data-help-name="swagger client">
    <p>This node allows to interact generically with several Web APIs provided that a <a href="http://swagger.wordnik.com">Swagger definition</a>
     is available for it. </p>
    <p>The actual functionality and interface provided by this node will directly depend on the Web API operation it is configured to use. This node
@@ -193,20 +249,19 @@
 <!-- Finally, the node type is registered along with all of its properties   -->
 <!-- The example below shows a small subset of the properties that can be set-->
 
-<!--<script src='swagger/shred.bundle.js'></script>-->
-<script src='swagger/swagger.js'></script>
+<script src='swagger-js/swagger.js'></script>
 <script type="text/javascript">
 
-    RED.nodes.registerType('swagger api',{
+    RED.nodes.registerType('swagger client',{
         category: 'function',      // the palette category
         color:"#C0DEED",
         defaults: {             // defines the editable properties of the node
-            api: {value:"", required:true},   //  along with default values.
+            apiConfig: {type: "swagger api", required:true},
             resource: {value:"", required: true},
             method: {value:"", required:true},
-            intype: {value: "", required:false},
-            outtype: {value: "", required:false},
-            authconfig: {type:"swagger credentials", required:false},
+            inType: {value: "", required:false},
+            outType: {value: "", required:false},
+            authConfig: {type:"swagger credentials", required:false},
             name: {value:""}
         },
         inputs:1,               // set the number of inputs - only 0 or 1
@@ -220,7 +275,7 @@
                 if (this.resource && this.method) {
                     return this.resource + "." + this.method;
                 } else {
-                    return "swagger api";
+                    return "swagger client";
                 }
             }
         },
@@ -319,7 +374,7 @@
                 $("#node-input-method.form-tips div").replaceWith(tipText);
             }
 
-            function updateRequestTypes(selectedResource, selectedMethod, intype) {
+            function updateRequestTypes(selectedResource, selectedMethod, inType) {
                 var consumes = null;
                 if (form.swagger != undefined && form.swagger.ready === true && selectedResource != undefined && selectedResource !== ""
                         && selectedMethod != undefined && selectedMethod !== "") {
@@ -332,10 +387,10 @@
                         }
                     }
                 }
-                populateSelectList($("#node-input-intype"), intype, consumes, "Choose a Content Type");
+                populateSelectList($("#node-input-inType"), inType, consumes, "Choose a Content Type");
             }
 
-            function updateResponseTypes(selectedResource, selectedMethod, outtype) {
+            function updateResponseTypes(selectedResource, selectedMethod, outType) {
                 var produces = null;
                 if (form.swagger != undefined && form.swagger.ready === true && selectedResource != undefined && selectedResource !== ""
                         && selectedMethod != undefined && selectedMethod !== "") {
@@ -348,19 +403,23 @@
                         }
                     }
                 }
-                populateSelectList($("#node-input-outtype"), outtype, produces, "Choose a Content Type");
+                populateSelectList($("#node-input-outType"), outType, produces, "Choose a Content Type");
             }
 
             // API Updated
-            $("#node-input-api").change(function(){
-                var apiUrl = $("#node-input-api").val().trim();
-                $("#node-input-api").val(apiUrl);
+            $("#node-input-apiConfig").change(function(){
+                var apiConfig = $("#node-input-apiConfig").val();
                 // The last check is necessary to prevent updates after the form is created.
-                if (apiUrl != undefined && apiUrl !== "" && (form.swagger == undefined || apiUrl !== form.swagger.url)) {
-                    createClient(apiUrl);
-                    updateApiTip();
-                    updateResourcesList();
-                    updateVisibility();
+                if (apiConfig != undefined && apiConfig != "_ADD_") {
+                    config = RED.nodes.node(apiConfig);
+                    if (config != undefined) {
+                        if (config.apiUrl != undefined && config.apiUrl !== "" && (form.swagger == undefined || config.apiUrl !== form.swagger.url)) {
+                            createClient(config.apiUrl);
+                            updateApiTip();
+                            updateResourcesList();
+                            updateVisibility();
+                        }
+                    }
                 }
             });
 
@@ -386,15 +445,15 @@
                 }
             });
 
-            function populateForm(resource, method, intype, outtype) {
+            function populateForm(resource, method, inType, outType) {
                 if (form.swagger != undefined && form.swagger.ready === true) {
                     updateApiTip();
                     updateResourcesList(resource);
                     updateResourceTip(resource);
                     updateMethodsList(resource, method);
                     updateMethodTip(resource, method);
-                    updateRequestTypes(resource, method, intype);
-                    updateResponseTypes(resource, method, outtype);
+                    updateRequestTypes(resource, method, inType);
+                    updateResponseTypes(resource, method, outType);
                 }
                 updateVisibility();
             }
@@ -479,8 +538,8 @@
              * Update the form on the basis of the content available
              * */
             function updateVisibility(resource, method) {
-                var url = $("#node-input-api").val();
-                if (url != undefined && url !== "" && form.swagger != undefined && form.swagger.ready === true) {
+                var config = $("#node-input-apiConfig").val();
+                if (config != undefined && config !== "_ADD_" && form.swagger != undefined && form.swagger.ready === true) {
                     // Show the resource
                     $("#node-input-resource-row").show();
                     // Check method
@@ -492,45 +551,45 @@
                         var method = $("#node-input-method option:selected").val();
                         if (method != undefined && method !== "") {
                             // Deal with content types
-                            if ($("#node-input-intype option").length > 2) {
+                            if ($("#node-input-inType option").length > 2) {
                                 // Show request content type
-                                $("#node-input-intype-row").show();
+                                $("#node-input-inType-row").show();
                             } else {
-                                $("#node-input-intype-row").hide();
+                                $("#node-input-inType-row").hide();
                             }
-                            if ($("#node-input-outtype option").length > 2) {
+                            if ($("#node-input-outType option").length > 2) {
                                 // Show response content type
-                                $("#node-input-outtype-row").show();
+                                $("#node-input-outType-row").show();
                             } else {
-                                $("#node-input-outtype-row").hide();
+                                $("#node-input-outType-row").hide();
                             }
                             // Deal with authentication
                             if (requiredAuthentication(form.swagger, resource, method) != undefined) {
-                                $("#node-input-authconfig-row").show();
+                                $("#node-input-authConfig-row").show();
                             } else {
-                                $("#node-input-authconfig-row").hide();
+                                $("#node-input-authConfig-row").hide();
                             }
                         } else {
-                            $("#node-input-intype-row").hide();
-                            $("#node-input-outtype-row").hide();
-                            $("#node-input-authconfig-row").hide();
+                            $("#node-input-inType-row").hide();
+                            $("#node-input-outType-row").hide();
+                            $("#node-input-authConfig-row").hide();
                         }
                     } else {
                         $("#node-input-method-row").hide();
-                        $("#node-input-intype-row").hide();
-                        $("#node-input-outtype-row").hide();
-                        $("#node-input-authconfig-row").hide();
+                        $("#node-input-inType-row").hide();
+                        $("#node-input-outType-row").hide();
+                        $("#node-input-authConfig-row").hide();
                     }
                 } else {
                     $("#node-input-resource-row").hide();
                     $("#node-input-method-row").hide();
-                    $("#node-input-intype-row").hide();
-                    $("#node-input-outtype-row").hide();
-                    $("#node-input-authconfig-row").hide();
+                    $("#node-input-inType-row").hide();
+                    $("#node-input-outType-row").hide();
+                    $("#node-input-authConfig-row").hide();
                 }
             }
 
-            function createClient(apiUrl, resource, method, intype, outtype) {
+            function createClient(apiUrl, resource, method, inType, outType) {
 
                 if (apiUrl != undefined && apiUrl !== "") {
 //                    if (form.swagger == undefined || form.swagger.url !== apiUrl) {
@@ -540,7 +599,7 @@
                             success: function () {
                                 if (this.ready === true) {
                                     RED.notify("Loaded API Description: " + this.url, "success");
-                                    populateForm(resource, method, intype, outtype);
+                                    populateForm(resource, method, inType, outType);
                                 }
                             },
                             failure: function () {
@@ -554,7 +613,7 @@
             // Obtain the values for creating the client (takes place before the form is populated)
             var node = RED.nodes.node(this.id);
             // Create or use the swagger client and populate the form
-            createClient(node.api, node.resource, node.method, node.intype, node.outtype);
+            createClient(node.apiUrl, node.resource, node.method, node.inType, node.outType);
             updateVisibility();
         }
     });
