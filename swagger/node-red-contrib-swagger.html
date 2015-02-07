@@ -20,7 +20,7 @@
  @author <a href="mailto:carlos.pedrinaci@open.ac.uk">Carlos Pedrinaci</a> (KMi - The Open University)
 -->
 
-<script type="text/x-red" data-template-name="swagger api">
+<script type="text/x-red" data-template-name="swagger configuration">
     <div class="form-row">
         <label for="node-config-input-apiUrl"><i class="fa fa-globe"></i> URL</label>
         <input type="text" id="node-config-input-apiUrl" placeholder="URL of a Swagger description">
@@ -41,7 +41,7 @@
 </script>
 
 <script type="text/javascript">
-    RED.nodes.registerType('swagger api',{
+    RED.nodes.registerType('swagger configuration',{
         category: 'config',
         defaults: {
             apiUrl: {required:true},
@@ -50,36 +50,6 @@
         label: function() {
             return this.name ? this.name : this.apiUrl;
         }
-//        oneditprepare: function() {
-//            $.getJSON('swagger-api/'+this.id,function(data) {
-//                if (data.apiUrl) {
-//                    $('#node-config-input-remoteurl').val(data.apiUrl);
-//                }
-//                if (data.name) {
-//                    $('#node-config-input-name').val(data.name);
-//                }
-//            });
-//        },
-//        oneditsave: function() {
-//            var details = {};
-//            details.apiUrl = $('#node-config-input-remoteurl').val().trim();
-//            details.name = $('#node-config-input-name').val().trim();
-//
-//            $.ajax({
-//                url: 'swagger-api/'+this.id,
-//                type: 'POST',
-//                data: details,
-//                success:function(result){}
-//            });
-//        },
-//        ondelete: function() {
-//            $.ajax({
-//                url: 'swagger-api/'+this.id,
-//                type: 'DELETE',
-//                success: function(result) {}
-//            });
-//        }
-
     });
 </script>
 
@@ -160,7 +130,7 @@
     });
 </script>
 
-<script type="text/x-red" data-template-name="swagger client">
+<script type="text/x-red" data-template-name="swagger api">
    <!-- data-template-name identifies the node type this is for              -->
 
    <!-- Each of the following divs creates a field in the edit dialog.       -->
@@ -239,7 +209,7 @@
 
 
 <!-- Next, some simple help text is provided for the node.                   -->
-<script type="text/x-red" data-help-name="swagger client">
+<script type="text/x-red" data-help-name="swagger api">
    <p>This node allows to interact generically with several Web APIs provided that a <a href="http://swagger.wordnik.com">Swagger definition</a>
     is available for it. </p>
    <p>The actual functionality and interface provided by this node will directly depend on the Web API operation it is configured to use. This node
@@ -252,11 +222,11 @@
 <script src='swagger-js/swagger.js'></script>
 <script type="text/javascript">
 
-    RED.nodes.registerType('swagger client',{
+    RED.nodes.registerType('swagger api',{
         category: 'function',      // the palette category
         color:"#C0DEED",
         defaults: {             // defines the editable properties of the node
-            apiConfig: {type: "swagger api", required:true},
+            apiConfig: {type: "swagger configuration", required:true},
             resource: {value:"", required: true},
             method: {value:"", required:true},
             inType: {value: "", required:false},
@@ -275,7 +245,7 @@
                 if (this.resource && this.method) {
                     return this.resource + "." + this.method;
                 } else {
-                    return "swagger client";
+                    return "swagger api";
                 }
             }
         },
@@ -415,9 +385,9 @@
                     if (config != undefined) {
                         if (config.apiUrl != undefined && config.apiUrl !== "" && (form.swagger == undefined || config.apiUrl !== form.swagger.url)) {
                             createClient(config.apiUrl);
-                            updateApiTip();
-                            updateResourcesList();
-                            updateVisibility();
+//                            updateApiTip();
+//                            updateResourcesList();
+//                            updateVisibility();
                         }
                     }
                 }
@@ -538,7 +508,7 @@
              * Update the form on the basis of the content available
              * */
             function updateVisibility(resource, method) {
-                var config = $("#node-input-apiConfig").val();
+                var config = $("#node-input-apiConfig option:selected").val();
                 if (config != undefined && config !== "_ADD_" && form.swagger != undefined && form.swagger.ready === true) {
                     // Show the resource
                     $("#node-input-resource-row").show();
@@ -612,9 +582,13 @@
 
             // Obtain the values for creating the client (takes place before the form is populated)
             var node = RED.nodes.node(this.id);
-            // Create or use the swagger client and populate the form
-            createClient(node.apiUrl, node.resource, node.method, node.inType, node.outType);
-            updateVisibility();
+            if (node.apiConfig != undefined && node.apiConfig != "_ADD_") {
+                apiConfig = RED.nodes.node(node.apiConfig);
+                if (apiConfig != undefined) {
+                    // Create or use the swagger client and populate the form
+                    createClient(apiConfig.apiUrl, node.resource, node.method, node.inType, node.outType);
+                }
+            }
         }
     });
 </script>

@@ -38,14 +38,14 @@ module.exports = function(RED) {
         }
     });
 
-    function SwaggerApiNode(n) {
+    function SwaggerConfigurationNode(n) {
         RED.nodes.createNode(this,n);
 
         this.apiUrl = n.apiUrl;
         this.name = n.name;
     }
 
-    RED.nodes.registerType("swagger api",SwaggerApiNode);
+    RED.nodes.registerType("swagger configuration",SwaggerConfigurationNode);
 
     // The main node definition - most things happen in here
     function SwaggerClientNode(n) {
@@ -299,7 +299,7 @@ module.exports = function(RED) {
 
 // Register the node by name. This must be called before overriding any of the
 // Node functions.
-    RED.nodes.registerType("swagger client",SwaggerClientNode);
+    RED.nodes.registerType("swagger api",SwaggerClientNode);
 
 // Expose internal javascript
     RED.httpAdmin.get('/swagger-js/:file', function(req, res){
@@ -318,8 +318,6 @@ module.exports = function(RED) {
 
     // Expose swagger descriptions available locally
     RED.httpAdmin.get('/swagger-descriptions*', function(req, res){
-
-        console.log("Folder is ... " + swaggerDescFolder);
 
         // Special treatment for the root folder
         if (req.params[0] === "" || req.params[0] === "/") {
