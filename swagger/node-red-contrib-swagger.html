@@ -22,22 +22,51 @@
 
 <script type="text/x-red" data-template-name="swagger configuration">
     <div class="form-row">
-        <label for="node-config-input-apiUrl"><i class="fa fa-globe"></i> URL</label>
+        <label for="node-config-input-apiUrl"><i class="fa fa-globe"></i> API URL</label>
         <input type="text" id="node-config-input-apiUrl" placeholder="URL of a Swagger description">
     </div>
 
-    <div class="form-tips" id="node-input-apiUrl" style="margin-top:5px">
+    <div class="form-tips" id="node-config-input-apiUrl" style="margin-top:5px margin-bottom:5px">
         <div>
-            Provide the URL of a Swagger description to load the node.
+            Provide the URL of a Swagger description to load.
              <br />
             For example: http://petstore.swagger.wordnik.com/api/api-docs
         </div>
     </div>
 
-    <div class="form-row">
-        <label for="node-config-input-name"><i class="fa fa-tag"></i> Name</label>
-        <input type="text" id="node-config-input-name" placeholder="API name">
+    <div class="form-row" id="node-config-input-authType-row" style="margin-top:5px">
+        <label for="node-config-input-authType" style="display: inline-block; vertical-align: middle; width:35%;"><i class="fa fa-bookmark"></i> Authentication</label>
+        <select type="text" id="node-config-input-authType" style="vertical-align: middle; width:60%;">
+            <option value="__ADD__">Choose an Authentication Type</option>
+            <option value="basicAuth">HTTP Basic Authentication</option>
+            <option value="apiKey">API Key</option>
+            <option disabled value="oauth2">OAuth 2</option>
+        </select>
     </div>
+
+    <div class="form-tips" id="node-config-input-authType-tips-row" style="margin-top:5px margin-bottom:5px">
+        <div>
+            The Web API has declared that for some methods <i>authentication may be necessary</i>.
+            The supported authentication means are listed above. <br />
+            <b>Note: </b> usually not all methods require authentication. Whenever authentication is necessary this method will automatically make use of the credentials configured.
+        </div>
+    </div>
+
+    <div class="form-row" id="node-config-input-user-row" style="margin-top:5px">
+        <label id="node-config-input-user-label" for="node-config-input-user" style="width:35%;"><i class="fa fa-user"></i> Username</label>
+        <input type="text" id="node-config-input-user" placeholder="Username" style="vertical-align: middle; width:60%;">
+    </div>
+
+    <div class="form-row" id="node-config-input-password-row" style="margin-top:5px">
+        <label id="node-config-input-password-label" for="node-config-input-password" style="width:35%;"><i class="fa fa-lock"></i> Password</label>
+        <input type="password" id="node-config-input-password" placeholder="Password or API Key" style="vertical-align: middle; width:60%;">
+    </div>
+
+    <div class="form-row" style="margin-top:5px">
+        <label for="node-config-input-name" style="width:35%;"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-config-input-name" placeholder="Name" style="vertical-align: middle; width:60%;">
+    </div>
+
 </script>
 
 <script type="text/javascript">
@@ -49,86 +78,207 @@
         },
         label: function() {
             return this.name ? this.name : this.apiUrl;
-        }
-    });
-</script>
-
-
- <!-- The credentials form -->
-<script type="text/x-red" data-template-name="swagger credentials">
-    <div class="form-row">
-        <label for="node-config-input-authType" style="display: inline-block; vertical-align: middle; width:35%;"><i class="fa fa-bookmark"></i> Authentication Type</label>
-        <select type="text" id="node-config-input-authType" style="vertical-align: middle; width:60%;">
-            <option selected disabled value="">Choose an Authentication Type</option>
-            <option value="basicAuth">HTTP Basic Authentication</option>
-            <option value="apiKey">API Key</option>
-            <!--<option value="oauth2">OAuth 2</option>-->
-        </select>
-    </div>
-    <div class="form-row" id="node-config-input-user-row">
-        <label id="node-config-input-user-label" for="node-config-input-user" style="width:35%;"><i class="fa fa-user"></i> Username</label>
-        <input type="text" id="node-config-input-user" placeholder="Username" style="vertical-align: middle; width:60%;">
-    </div>
-    <div class="form-row" id="node-config-input-password-row">
-        <label id="node-config-input-password-label" for="node-config-input-password" style="width:35%;"><i class="fa fa-lock"></i> Password</label>
-        <input type="password" id="node-config-input-password" placeholder="Password or API Key" style="vertical-align: middle; width:60%;">
-    </div>
-    <div class="form-row">
-        <label for="node-config-input-name" style="width:35%;"><i class="fa fa-tag"></i> Name</label>
-        <input type="text" id="node-config-input-name" placeholder="Name" style="vertical-align: middle; width:60%;">
-    </div>
-</script>
-
-<script type="text/javascript">
-    RED.nodes.registerType('swagger credentials',{
-        category: 'config',
-        color:"#C0DEED",
-        defaults: {             // defines the editable properties of the node
-            name: {value:""}
-        },
-        credentials: {
-            authType: {type: "text"},
-            user: {type:"text"},
-            password: {type: "password"}
-        },
-        label: function() {
-            return this.name||this.authType + " credentials for ...";  //TODO: we should keep the service Id
         },
         oneditprepare: function() {
-            function updateForm(selectedAuth) {
-                switch (selectedAuth) {
-                    case "apiKey":
-                        var label = '<label id="node-config-input-password-label" for="node-config-input-password" style="width:35%;"><i class="fa fa-lock"></i> API Key</label>';
-                        $("#node-config-input-password-label").replaceWith(label);
-                        $("#node-config-input-password").attr("placeholder","API Key");
-                        $("#node-config-input-user-row").hide();
-                        $("#node-config-input-password-row").show();
-                        break;
 
-                    case "basicAuth":
-                        var label = '<label id="node-config-input-password-label" for="node-config-input-password" style="width:35%;"><i class="fa fa-lock"></i> Password</label>';
-                        $("#node-config-input-password-label").replaceWith(label);
-                        $("#node-config-input-password").attr("placeholder","API Password");
-                        $("#node-config-input-password-row").show();
-                        $("#node-config-input-user-row").show();
-                        break;
+            var form = this;
 
-                    default :
-                        $("#node-config-input-user-row").hide();
-                        $("#node-config-input-password-row").hide();
+            function updateApiTip() {
+                var tipText = "Provide the URL of a Swagger description to load the node. <br/>For example: http://petstore.swagger.wordnik.com/api/api-docs";
+                if(form.swagger != undefined && form.swagger.ready === true) {
+                    if (form.swagger.info != null) {
+                        var title = form.swagger.info.title;
+                        var description = form.swagger.info.description;
+                        if (title != undefined && title !== "" && description != undefined && description != "") {
+                            tipText = "<b>" + title + "</b>: <br/><i>" + description + "</i>";
+                        } else {
+                            if (title != undefined && title !== "") {
+                                tipText = title;
+                            } else if (description != undefined && description != "") {
+                                tipText = description;
+                            } else {
+                                tipText = "Loaded description for <i>" + form.swagger.basePath + "</i>";
+                            }
+                        }
+                    } else {
+                        tipText = "Loaded description for <i>" + form.swagger.basePath + "</i>";
+                    }
+                }
+                tipText = "<div>" + tipText + "</div>";
+                $("#node-config-input-apiUrl.form-tips div").replaceWith(tipText);
+            }
+
+            function updateAuthForm(supportedAuths, selectedAuth) {
+                updateAuthOptions(supportedAuths, selectedAuth);
+                updateAuthVisibility(supportedAuths, selectedAuth);
+            }
+
+            function updateAuthOptions(supportedAuths, selectedAuth) {
+
+                // Update list of possible Auths
+                $("#node-config-input-authType > option").each(function () {
+                    if ($.inArray($(this).val(), supportedAuths)) {
+                        $(this).attr("disabled", true);
+                    } else {
+                        $(this).attr("disabled", false);
+                    }
+                });
+
+                // Set the selection
+                if (selectedAuth == undefined) {
+                    selectedAuth = "__ADD__";
+                }
+
+                $("#node-config-input-authType").val(selectedAuth);
+            }
+
+            function updateAuthVisibility(supportedAuths, selectedAuth) {
+
+                console.log("updating visibility: " + supportedAuths + " with " + selectedAuth);
+
+                // Only show if Authentication may be necessary
+                if (supportedAuths.length > 0) {
+                    // Update visibility of fields
+                    $("#node-config-input-authType-row").show();
+                    $("#node-config-input-authType-tips-row").show();
+
+                    switch (selectedAuth) {
+                        case "apiKey":
+                            var label = '<label id="node-config-input-password-label" for="node-config-input-password" style="width:35%;"><i class="fa fa-lock"></i> API Key</label>';
+                            $("#node-config-input-password-label").replaceWith(label);
+                            $("#node-config-input-password").attr("placeholder","API Key");
+                            $("#node-config-input-user-row").hide();
+                            $("#node-config-input-password-row").show();
+                            break;
+
+                        case "basicAuth":
+                            var label = '<label id="node-config-input-password-label" for="node-config-input-password" style="width:35%;"><i class="fa fa-lock"></i> Password</label>';
+                            $("#node-config-input-password-label").replaceWith(label);
+                            $("#node-config-input-password").attr("placeholder","API Password");
+                            $("#node-config-input-password-row").show();
+                            $("#node-config-input-user-row").show();
+                            break;
+
+                        default :
+                                console.log("default?");
+                            $("#node-config-input-user-row").hide();
+                            $("#node-config-input-password-row").hide();
+                    }
+
+                } else {
+                    $("#node-config-input-authType-row").hide();
+                    $("#node-config-input-authType-tips-row").hide();
+                    $("#node-config-input-user-row").hide();
+                    $("#node-config-input-password-row").hide();
                 }
             }
+
+            function isValidUrl(apiUrl) {
+                // TODO: validate the URL
+                if (apiUrl != undefined && apiUrl !== "") {
+                    return true;
+                }
+                return false;
+            }
+
+            function supportedAuths(swaggerClient) {
+                if (swaggerClient != null) {
+                    return Object.keys(swaggerClient.authSchemes).map(function(authKey) {
+                        if ( swaggerClient.authSchemes[authKey] != undefined && swaggerClient.authSchemes[authKey].hasOwnProperty("type")) {
+                            return swaggerClient.authSchemes[authKey]["type"];
+                        }
+                    });
+                } else {
+                    return [];
+                }
+            }
+
+            function populateForm(supportedAuths, selectedAuth, user, password) {
+                updateApiTip();
+                updateAuthForm(supportedAuths, selectedAuth);
+
+                if (user) {
+                    $('#node-config-input-user').val(user);
+                }
+                if (password) {
+                    $('#node-config-input-password').val('__PWRD__');
+                } else {
+                    $('#node-config-input-password').val('');
+                }
+            }
+
+            function createClient(apiUrl, selectedAuth, user, password) {
+                if (isValidUrl(apiUrl)) {
+                    form.swagger = new SwaggerApi({
+                        url: apiUrl,
+                        useJQuery: true,
+                        success: function () {
+                            if (this.ready === true) {
+                                RED.notify("Loaded API Description: " + this.url, "success");
+                                populateForm(supportedAuths(form.swagger), selectedAuth, user, password);
+                            }
+                        },
+                        failure: function () {
+                            RED.notify("<strong>Error</strong>: unable to load API description: <br />" + this.url + ". <br />Check the server has the appropriate access-control-origin settings. ", "error");
+                        }
+                    });
+                }
+            }
+
+            // API Updated
+            $("#node-config-input-apiUrl").change(function(){
+                var apiUrl = $("#node-config-input-apiUrl").val();
+                // The last check is necessary to prevent updates after the form is created.
+                if (isValidUrl(apiUrl) && (form.swagger == undefined || apiUrl !== form.swagger.url)) {
+                    createClient(apiUrl);
+                }
+            });
 
             // Auth type Updated
             $("#node-config-input-authType").change(function() {
                 var selectedAuth = $("#node-config-input-authType option:selected").val();
-                updateForm(selectedAuth);
+                updateAuthVisibility(supportedAuths(form.swagger), selectedAuth);
             });
 
-            updateForm($("#node-config-input-authType option:selected").val());
+            $.getJSON('swagger-configuration/'+this.id, function(authData) {
+                // Create or use the swagger client and populate the form
+                if (isValidUrl(form.apiUrl) && (form.swagger == undefined || form.apiUrl !== form.swagger.url)) {
+                    createClient(form.apiUrl, authData.authType, authData.user, authData.password);
+                } else {
+                    if (isValidUrl(form.apiUrl)) {
+                        populateForm(supportedAuths(form.swagger), authData.authType, authData.user, authData.password);
+                    }
+                }
+            });
+        },
+        oneditsave: function() {
+            var newUser = $('#node-config-input-user').val();
+            var newPass = $('#node-config-input-password').val();
+            var newAuthType = $('#node-config-input-authType option:selected').val();
+            var credentials = {};
+            credentials.authType = newAuthType;
+            credentials.user = newUser;
+            if (newPass != '__PWRD__') {
+                credentials.password = newPass;
+            }
+
+            $.ajax({
+                url: 'swagger-configuration/'+this.id,
+                type: 'POST',
+                data: credentials,
+                success:function(result){}
+            });
+        },
+        ondelete: function() {
+            $.ajax({
+                url: 'swagger-configuration/'+this.id,
+                type: 'DELETE',
+                success: function(result) {}
+            });
         }
     });
 </script>
+
 
 <script type="text/x-red" data-template-name="swagger api">
    <!-- data-template-name identifies the node type this is for              -->
@@ -145,12 +295,18 @@
         <input type="text" id="node-input-apiConfig">
     </div>
 
+    <div class="form-tips" id="node-input-apiConfig" style="margin-top:5px margin-bottom:5px">
+        <div>
+            Choose an existing Swagger API or configure a new one.
+        </div>
+    </div>
+
     <!-- The Resource -->
-    <div class="form-row" id="node-input-resource-row">
+    <div class="form-row" id="node-input-resource-row" style="margin-top:5px margin-bottom:5px">
         <label for="node-input-resource"><i class="icon-tag"></i> Resource</label>
         <select type="text" id="node-input-resource" style="display: inline-block; vertical-align: middle; width:60%;">
          <!-- <select type="text" id="node-input-resource" style="display: inline-block; vertical-align: middle; width:60%;"> -->
-            <option selected disabled value="" >Choose a Resource</option>
+            <option selected disabled value="__ADD__" >Choose a Resource</option>
         </select>
         <div class="form-tips" id="node-input-resource" style="margin-top:5px">
             <div>Select one of the resources offered by the API.</div>
@@ -158,11 +314,11 @@
     </div>
 
     <!-- The Method -->
-    <div class="form-row" id="node-input-method-row">
+    <div class="form-row" id="node-input-method-row" style="margin-top:5px">
         <label for="node-input-method"><i class="icon-tag"></i> Method</label>
         <select type="text" id="node-input-method" style="display: inline-block; vertical-align: middle; width:60%;">
         <!--  <select type="text" id="node-input-method" style="display: inline-block; vertical-align: middle; width:60%;"> -->
-            <option selected disabled value="">Choose a Method</option>
+            <option selected disabled value="__ADD__">Choose a Method</option>
         </select>
         <div class="form-tips" id="node-input-method" style="margin-top:5px">
             <div>Select one of the methods offered by the API.</div>
@@ -170,10 +326,10 @@
     </div>
 
     <!-- Request Content Type -->
-    <div class="form-row" id="node-input-inType-row">
+    <div class="form-row" id="node-input-inType-row" style="margin-top:5px">
         <label for="node-input-inType"><i class="icon-tag"></i> Request Content Type</label>
         <select type="text" id="node-input-inType" style="display: inline-block; vertical-align: middle; width:60%;">
-            <option selected disabled value="">Choose a Content Type</option>
+            <option selected disabled value="__ADD__">Choose a Content Type</option>
         </select>
         <div class="form-tips" id="node-input-inType" style="margin-top:5px">
             <span>You may choose a content type for the input. If unspecified it will be "application/json".</span>
@@ -181,26 +337,20 @@
     </div>
 
     <!-- Response Content Type -->
-    <div class="form-row" id="node-input-outType-row">
+    <div class="form-row" id="node-input-outType-row" style="margin-top:5px">
         <label for="node-input-outType"><i class="icon-tag"></i> Response Content Type</label>
         <select type="text" id="node-input-outType" style="display: inline-block; vertical-align: middle; width:60%;">
-            <option selected disabled value="">Choose a Content Type</option>
+            <option selected disabled value="__ADD__">Choose a Content Type</option>
         </select>
         <div class="form-tips" id="node-input-outType" style="margin-top:5px">
             <span>You may choose a content type for the response. If unspecified it will be "application/json".</span>
         </div>
     </div>
 
-    <!-- Authentication Credentials -->
-    <div class="form-row" id="node-input-authConfig-row">
-        <label for="node-input-authConfig"><i class="fa fa-bookmark"></i> Credentials</label>
-        <input type="text" id="node-input-authConfig">
-    </div>
-
     <!-- By convention, most nodes have a 'name' property. The following div -->
     <!-- provides the necessary field. Should always be the last option      -->
 
-    <div class="form-row">
+    <div class="form-row" style="margin-top:5px">
         <label for="node-input-name"><i class="icon-tag"></i> Name</label>
         <input type="text" id="node-input-name" placeholder="Name">
     </div>
@@ -231,7 +381,6 @@
             method: {value:"", required:true},
             inType: {value: "", required:false},
             outType: {value: "", required:false},
-            authConfig: {type:"swagger credentials", required:false},
             name: {value:""}
         },
         inputs:1,               // set the number of inputs - only 0 or 1
@@ -255,12 +404,12 @@
         oneditprepare: function() {
             var form = this;
 
-            function getSelectedMethod() {
-                return $("#node-input-method option:selected").val();
-            }
+//            function getSelectedMethod() {
+//                return $("#node-input-method option:selected").val();
+//            }
 
             function updateApiTip() {
-                var tipText = "Provide the URL of a Swagger description to load the node. <br/>For example: http://petstore.swagger.wordnik.com/api/api-docs";
+                var tipText = "Choose an existing Swagger API or configure a new one.";
                 if(form.swagger != undefined && form.swagger.ready === true) {
                     if (form.swagger.info != null) {
                         var title = form.swagger.info.title;
@@ -279,7 +428,7 @@
                     }
                 }
                 tipText = "<div>" + tipText + "</div>";
-                $("#node-input-api.form-tips div").replaceWith(tipText);
+                $("#node-input-apiConfig.form-tips div").replaceWith(tipText);
             }
 
             function updateResourcesList(selectedResource) {
@@ -381,13 +530,10 @@
                 var apiConfig = $("#node-input-apiConfig").val();
                 // The last check is necessary to prevent updates after the form is created.
                 if (apiConfig != undefined && apiConfig != "_ADD_") {
-                    config = RED.nodes.node(apiConfig);
-                    if (config != undefined) {
-                        if (config.apiUrl != undefined && config.apiUrl !== "" && (form.swagger == undefined || config.apiUrl !== form.swagger.url)) {
-                            createClient(config.apiUrl);
-//                            updateApiTip();
-//                            updateResourcesList();
-//                            updateVisibility();
+                    configNode = RED.nodes.node(apiConfig);
+                    if (configNode != undefined) {
+                        if (configNode.apiUrl != undefined && configNode.apiUrl !== "" && (form.swagger == undefined || configNode.apiUrl !== form.swagger.url)) {
+                            createClient(configNode.apiUrl);
                         }
                     }
                 }
@@ -438,7 +584,7 @@
                         var option = $('<option></option>')
                                 .prop("disabled", true)
                                 .prop("selected", true)
-                                .attr("value", "")
+                                .attr("value", "__ADD__")
                                 .text(helpText);
 
                         jQuerySelector.append(option);
@@ -469,57 +615,56 @@
                     }
                 }
             }
-
-            function requiredAuthentication(swaggerClient, resource, method) {
-                var scheme;
-                if (swaggerClient != undefined && swaggerClient.ready === true) {
-                    // Auth schemes definitions
-                    var authSchemes = swaggerClient.authSchemes;
-                    var authSchemesKeys = Object.keys(authSchemes);
-                    if (authSchemesKeys.length > 0) {
-                        // Authentications schemes are defined
-
-                        // Find out the scheme needed. Check the operation and then the resource.
-                        // Operations override authentication from resources
-                        // We assume only the first one applies
-
-                        var opAuths = swaggerClient.apis[resource].operations[method].authorizations;
-                        if (opAuths != undefined) {
-                            var opAuthSchemesKeys = Object.keys(opAuths);
-                            if (opAuthSchemesKeys.length > 0) {
-                                // The operation specifies its authentication
-                                scheme = authSchemes[opAuthSchemesKeys[0]];
-                            }
-                        } else {
-                            // Get the resources authentication requirements instead
-                            var resAuths = swaggerClient.apis[resource].api.authorizations;
-                            var authSchemesKeys = Object.keys(resAuths);
-                            if (authSchemesKeys.length > 0) {
-                                // The resource specifies its authentication
-                                scheme = authSchemes[resAuths[0]];
-                            }
-                        }
-                    }
-                }
-                return scheme;
-            }
+//
+//            function requiredAuthentication(swaggerClient, resource, method) {
+//                var scheme;
+//                if (swaggerClient != undefined && swaggerClient.ready === true) {
+//                    // Auth schemes definitions
+//                    var authSchemes = swaggerClient.authSchemes;
+//                    var authSchemesKeys = Object.keys(authSchemes);
+//                    if (authSchemesKeys.length > 0) {
+//                        // Authentications schemes are defined
+//
+//                        // Find out the scheme needed. Check the operation and then the resource.
+//                        // Operations override authentication from resources
+//                        // We assume only the first one applies
+//
+//                        var opAuths = swaggerClient.apis[resource].operations[method].authorizations;
+//                        if (opAuths != undefined) {
+//                            var opAuthSchemesKeys = Object.keys(opAuths);
+//                            if (opAuthSchemesKeys.length > 0) {
+//                                // The operation specifies its authentication
+//                                scheme = authSchemes[opAuthSchemesKeys[0]];
+//                            }
+//                        } else {
+//                            // Get the resources authentication requirements instead
+//                            var resAuths = swaggerClient.apis[resource].api.authorizations;
+//                            var authSchemesKeys = Object.keys(resAuths);
+//                            if (authSchemesKeys.length > 0) {
+//                                // The resource specifies its authentication
+//                                scheme = authSchemes[resAuths[0]];
+//                            }
+//                        }
+//                    }
+//                }
+//                return scheme;
+//            }
 
             /*
              * Update the form on the basis of the content available
              * */
             function updateVisibility(resource, method) {
-                var config = $("#node-input-apiConfig option:selected").val();
-                if (config != undefined && config !== "_ADD_" && form.swagger != undefined && form.swagger.ready === true) {
+                if (form.swagger != undefined && form.swagger.ready === true) {
                     // Show the resource
                     $("#node-input-resource-row").show();
                     // Check method
                     var resource = $("#node-input-resource option:selected").val();
-                    if (resource != undefined && resource !== "") {
+                    if (resource != undefined && resource !== "__ADD__") {
                         // Show the method
                         $("#node-input-method-row").show();
                         // Check content types
                         var method = $("#node-input-method option:selected").val();
-                        if (method != undefined && method !== "") {
+                        if (method != undefined && method !== "__ADD__") {
                             // Deal with content types
                             if ($("#node-input-inType option").length > 2) {
                                 // Show request content type
@@ -533,62 +678,57 @@
                             } else {
                                 $("#node-input-outType-row").hide();
                             }
-                            // Deal with authentication
-                            if (requiredAuthentication(form.swagger, resource, method) != undefined) {
-                                $("#node-input-authConfig-row").show();
-                            } else {
-                                $("#node-input-authConfig-row").hide();
-                            }
                         } else {
                             $("#node-input-inType-row").hide();
                             $("#node-input-outType-row").hide();
-                            $("#node-input-authConfig-row").hide();
                         }
                     } else {
                         $("#node-input-method-row").hide();
                         $("#node-input-inType-row").hide();
                         $("#node-input-outType-row").hide();
-                        $("#node-input-authConfig-row").hide();
                     }
                 } else {
                     $("#node-input-resource-row").hide();
                     $("#node-input-method-row").hide();
                     $("#node-input-inType-row").hide();
                     $("#node-input-outType-row").hide();
-                    $("#node-input-authConfig-row").hide();
                 }
             }
 
             function createClient(apiUrl, resource, method, inType, outType) {
 
                 if (apiUrl != undefined && apiUrl !== "") {
-//                    if (form.swagger == undefined || form.swagger.url !== apiUrl) {
-                        form.swagger = new SwaggerApi({
-                            url: apiUrl,
-                            useJQuery: true,
-                            success: function () {
-                                if (this.ready === true) {
-                                    RED.notify("Loaded API Description: " + this.url, "success");
-                                    populateForm(resource, method, inType, outType);
-                                }
-                            },
-                            failure: function () {
-                                RED.notify("<strong>Error</strong>: unable to load API description: <br />" + this.url + ". <br />Check the server has the appropriate access-control-origin settings. ", "error");
+                    form.swagger = new SwaggerApi({
+                        url: apiUrl,
+                        useJQuery: true,
+                        success: function () {
+                            if (this.ready === true) {
+                                RED.notify("Loaded API Description: " + this.url, "success");
+                                populateForm(resource, method, inType, outType);
                             }
-                        });
-                    }
-//                }
+                        },
+                        failure: function () {
+                            RED.notify("<strong>Error</strong>: unable to load API description: <br />" + this.url + ". <br />Check the server has the appropriate access-control-origin settings. ", "error");
+                        }
+                    });
+                }
             }
 
             // Obtain the values for creating the client (takes place before the form is populated)
             var node = RED.nodes.node(this.id);
-            if (node.apiConfig != undefined && node.apiConfig != "_ADD_") {
-                apiConfig = RED.nodes.node(node.apiConfig);
-                if (apiConfig != undefined) {
+
+            if (node.apiConfig != undefined) {
+                configNode = RED.nodes.node(node.apiConfig);
+                if (configNode != undefined) {
                     // Create or use the swagger client and populate the form
-                    createClient(apiConfig.apiUrl, node.resource, node.method, node.inType, node.outType);
+                    createClient(configNode.apiUrl, node.resource, node.method, node.inType, node.outType);
+                } else {
+                    $("#node-input-apiConfig").val("__ADD__");
+                    updateVisibility();
                 }
             }
+
+            updateVisibility();
         }
     });
 </script>

@@ -25,17 +25,49 @@ module.exports = function(RED) {
     "use strict";
     var fs = require("fs");
     var path = require('path');
+    var querystring = require('querystring');
 
-    function SwaggerCredentialsNode(n) {
-        RED.nodes.createNode(this,n);
-    }
+    RED.httpAdmin.get('/swagger-configuration/:id',function(req,res) {
+        var credentials = RED.nodes.getCredentials(req.params.id);
 
-    RED.nodes.registerType("swagger credentials",SwaggerCredentialsNode,{
-        credentials: {
-            authType: {type: "text"},
-            user: {type:"text"},
-            password: {type: "password"}
+        if (credentials) {
+            res.send(JSON.stringify({authType: credentials.authType, user:credentials.user,password:(credentials.password&&credentials.password!=="")}));
+        } else {
+            res.send(JSON.stringify({}));
         }
+    });
+
+    RED.httpAdmin.delete('/swagger-configuration/:id',function(req,res) {
+        RED.nodes.deleteCredentials(req.params.id);
+        res.send(200);
+    });
+
+    RED.httpAdmin.post('/swagger-configuration/:id',function(req,res) {
+        var body = "";
+        req.on('data', function(chunk) {
+            body+=chunk;
+        });
+        req.on('end', function(){
+            var newCreds = querystring.parse(body);
+            var credentials = RED.nodes.getCredentials(req.params.id)||{};
+            if (newCreds.authType == null || newCreds.authType === "") {
+                delete credentials.authType;
+            } else {
+                credentials.authType = newCreds.authType;
+            }
+            if (newCreds.user == null || newCreds.user === "") {
+                delete credentials.user;
+            } else {
+                credentials.user = newCreds.user;
+            }
+            if (newCreds.password === "") {
+                delete credentials.password;
+            } else {
+                credentials.password = newCreds.password||credentials.password;
+            }
+            RED.nodes.addCredentials(req.params.id,credentials);
+            res.send(200);
+        });
     });
 
     function SwaggerConfigurationNode(n) {
@@ -43,6 +75,24 @@ module.exports = function(RED) {
 
         this.apiUrl = n.apiUrl;
         this.name = n.name;
+
+        var credentials = {};
+        if (n.user) {
+            credentials.authType = n.authType;
+            credentials.user = n.user;
+            credentials.password = n.pass;
+            RED.nodes.addCredentials(n.id,credentials);
+            this.authType = n.authType;
+            this.user = n.user;
+            this.password = n.pass;
+        } else {
+            credentials = RED.nodes.getCredentials(n.id);
+            if (credentials) {
+                this.authType = credentials.authType;
+                this.user = credentials.user;
+                this.password = credentials.password;
+            }
+        }
     }
 
     RED.nodes.registerType("swagger configuration",SwaggerConfigurationNode);
@@ -220,23 +270,25 @@ module.exports = function(RED) {
             var scheme = requiredAuthentication(node.swaggerClient, node.resource, node.method);
             if (scheme != undefined) {
                 // ensure we have the same kind of credentials necessary
-                var credentials = node.authentication.credentials;
+                var authType = node.apiConfig.authType;
+                var user = node.apiConfig.user;
+                var password = node.apiConfig.password;
 
-                if (credentials != undefined && scheme != undefined && credentials.authType === scheme.type) {
+                if (authType != undefined && scheme != undefined && authType === scheme.type) {
                     // Add the credentials to the client
                     switch(scheme.type) {
                         case 'apiKey':
-                            swagger.authorizations.add(scheme.name, new swagger.ApiKeyAuthorization(scheme.keyname, credentials.password, scheme.passAs));
+                            swagger.authorizations.add(scheme.name, new swagger.ApiKeyAuthorization(scheme.keyname, password, scheme.passAs));
                             break;
 
                         case 'basicAuth':
                             // The first parameter for the password authorization is unclear to me (and not used by node.swagger-client?)
-                            swagger.authorizations.add(scheme.name, new swagger.PasswordAuthorization(scheme.type, credentials.user, credentials.password));
+                            swagger.authorizations.add(scheme.name, new swagger.PasswordAuthorization(scheme.type, user, password));
                             break;
 
                         //TODO: handle oauth2
                     }
-                } else if (credentials != undefined && credentials.authType !== scheme.type) {
+                } else if (authType != undefined && authType !== scheme.type) {
                     // We can't provide the credentials. Warn?
                     node.warn("This API requires authentication of type " + scheme.type + " . No appropriate credentials have been provided. Please reconfigure the node.");
                 }
