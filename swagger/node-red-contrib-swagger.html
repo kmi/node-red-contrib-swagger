@@ -30,7 +30,7 @@
         <div>
             Provide the URL of a Swagger description to load.
              <br />
-            For example: http://petstore.swagger.wordnik.com/api/api-docs
+            For example: https://dweet.io/play/definition
         </div>
     </div>
 
@@ -180,7 +180,7 @@
 
             function supportedAuths(swaggerClient) {
 
-                if (swaggerClient != null && swaggerClient.ready === true) {
+                if (swaggerClient != undefined && swaggerClient.ready === true && swaggerClient.authSchemes != undefined) {
                     return Object.keys(swaggerClient.authSchemes).map(function(authKey) {
                         if ( swaggerClient.authSchemes[authKey] != undefined && swaggerClient.authSchemes[authKey].hasOwnProperty("type")) {
                             return swaggerClient.authSchemes[authKey]["type"];
