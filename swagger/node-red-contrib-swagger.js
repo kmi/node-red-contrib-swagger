@@ -23,38 +23,102 @@
 module.exports = function(RED) {
 
     "use strict";
+    var fs = require("fs");
+    var path = require('path');
+    var querystring = require('querystring');
 
-    function SwaggerCredentialsNode(n) {
-        RED.nodes.createNode(this,n);
-    }
+    RED.httpAdmin.get('/swagger-configuration/:id',function(req,res) {
+        var credentials = RED.nodes.getCredentials(req.params.id);
 
-    RED.nodes.registerType("swagger credentials",SwaggerCredentialsNode,{
-        credentials: {
-            authType: {type: "text"},
-            user: {type:"text"},
-            password: {type: "password"}
+        if (credentials) {
+            res.send(JSON.stringify({authType: credentials.authType, user:credentials.user,password:(credentials.password&&credentials.password!=="")}));
+        } else {
+            res.send(JSON.stringify({}));
         }
     });
 
+    RED.httpAdmin.delete('/swagger-configuration/:id',function(req,res) {
+        RED.nodes.deleteCredentials(req.params.id);
+        res.send(200);
+    });
+
+    RED.httpAdmin.post('/swagger-configuration/:id',function(req,res) {
+        var body = "";
+        req.on('data', function(chunk) {
+            body+=chunk;
+        });
+        req.on('end', function(){
+            var newCreds = querystring.parse(body);
+            var credentials = RED.nodes.getCredentials(req.params.id)||{};
+            if (newCreds.authType == null || newCreds.authType === "") {
+                delete credentials.authType;
+            } else {
+                credentials.authType = newCreds.authType;
+            }
+            if (newCreds.user == null || newCreds.user === "") {
+                delete credentials.user;
+            } else {
+                credentials.user = newCreds.user;
+            }
+            if (newCreds.password === "") {
+                delete credentials.password;
+            } else {
+                credentials.password = newCreds.password||credentials.password;
+            }
+            RED.nodes.addCredentials(req.params.id,credentials);
+            res.send(200);
+        });
+    });
+
+    function SwaggerConfigurationNode(n) {
+        RED.nodes.createNode(this,n);
+
+        this.apiUrl = n.apiUrl;
+        this.name = n.name;
+
+        var credentials = {};
+        if (n.user) {
+            credentials.authType = n.authType;
+            credentials.user = n.user;
+            credentials.password = n.pass;
+            RED.nodes.addCredentials(n.id,credentials);
+            this.authType = n.authType;
+            this.user = n.user;
+            this.password = n.pass;
+        } else {
+            credentials = RED.nodes.getCredentials(n.id);
+            if (credentials) {
+                this.authType = credentials.authType;
+                this.user = credentials.user;
+                this.password = credentials.password;
+            }
+        }
+    }
+
+    RED.nodes.registerType("swagger configuration",SwaggerConfigurationNode);
 
     // The main node definition - most things happen in here
-    function SwaggerApiNode(n) {
+    function SwaggerClientNode(n) {
         // Create a RED node
         RED.nodes.createNode(this,n);
 
         // Store local copies of the node configuration (as defined in the .html)
-        this.api = n.api;
+        this.apiConfig = RED.nodes.getNode(n.apiConfig);
+        if (this.apiConfig != undefined) {
+            this.apiUrl = this.apiConfig.apiUrl;
+        }
+
         this.resource = n.resource;
         this.method = n.method;
 
         // Request content type. By default the engine will fall back to "application/json"
-        this.intype = n.intype;
+        this.inType = n.inType;
         // Response content type. By default the engine will fall back to "application/json"
-        this.outtype = n.outtype;
+        this.outType = n.outType;
 
         // Authentication credentials
-        this.authconfig = n.authconfig;
-        this.authentication = RED.nodes.getNode(this.authconfig);
+        this.authConfig = n.authConfig;
+        this.authentication = RED.nodes.getNode(this.authConfig);
 
         var node = this;
         var swagger = require('swagger-client');
@@ -66,15 +130,15 @@ module.exports = function(RED) {
             console.log(err);
         });
 
-        if (node.api != undefined && (node.swaggerClient == undefined || node.swaggerClient.url !== node.api)) {
+        if (node.apiUrl != undefined && (node.swaggerClient == undefined || node.swaggerClient.url !== node.apiUrl)) {
 
             // Use a domain to catch inner exceptions
             d.run(function() {
                 node.swaggerClient = new swagger.SwaggerApi({
-                    url: node.api,
+                    url: node.apiUrl,
                     success: function () {
                         if (this.ready) {
-                            node.log("Client created for: " + node.api);
+                            node.log("Client created for: " + node.apiUrl);
                             // We should setup authentication here once and for all but authentication is
                             // handled as a global variable accross all swagger clients by swagger.js for now
                             // TODO: Fix this when swagger.js updates authentication handling
@@ -82,7 +146,7 @@ module.exports = function(RED) {
                     },
                     // define failure function
                     failure: function () {
-                        node.warn("Unable to create client for: " + node.api);
+                        node.warn("Unable to create client for: " + node.apiUrl);
                     }
                 });
             });
@@ -110,7 +174,7 @@ module.exports = function(RED) {
                     } else {
                         // Check response content type and handle accordingly
                         // If unspecified we assume json
-                        if (node.outtype != undefined && node.outtype !== "" && node.outtype !== "application/json") {
+                        if (node.outType != undefined && node.outType !== "" && node.outType !== "application/json") {
                             // Not JSON, treat as a string
                             msg.payload = response.data.toString();
                         } else {
@@ -206,23 +270,25 @@ module.exports = function(RED) {
             var scheme = requiredAuthentication(node.swaggerClient, node.resource, node.method);
             if (scheme != undefined) {
                 // ensure we have the same kind of credentials necessary
-                var credentials = node.authentication.credentials;
+                var authType = node.apiConfig.authType;
+                var user = node.apiConfig.user;
+                var password = node.apiConfig.password;
 
-                if (credentials != undefined && scheme != undefined && credentials.authType === scheme.type) {
+                if (authType != undefined && scheme != undefined && authType === scheme.type) {
                     // Add the credentials to the client
                     switch(scheme.type) {
                         case 'apiKey':
-                            swagger.authorizations.add(scheme.name, new swagger.ApiKeyAuthorization(scheme.keyname, credentials.password, scheme.passAs));
+                            swagger.authorizations.add(scheme.name, new swagger.ApiKeyAuthorization(scheme.keyname, password, scheme.passAs));
                             break;
 
                         case 'basicAuth':
                             // The first parameter for the password authorization is unclear to me (and not used by node.swagger-client?)
-                            swagger.authorizations.add(scheme.name, new swagger.PasswordAuthorization(scheme.type, credentials.user, credentials.password));
+                            swagger.authorizations.add(scheme.name, new swagger.PasswordAuthorization(scheme.type, user, password));
                             break;
 
                         //TODO: handle oauth2
                     }
-                } else if (credentials != undefined && credentials.authType !== scheme.type) {
+                } else if (authType != undefined && authType !== scheme.type) {
                     // We can't provide the credentials. Warn?
                     node.warn("This API requires authentication of type " + scheme.type + " . No appropriate credentials have been provided. Please reconfigure the node.");
                 }
@@ -238,12 +304,12 @@ module.exports = function(RED) {
                 // Set the options
                 var opts = {};
                 // Note if unspecified swagger.js assumes json in most cases
-                if (node.intype != undefined && node.intype != "") {
-                    opts["requestContentType"] = node.intype;
+                if (node.inType != undefined && node.inType != "") {
+                    opts["requestContentType"] = node.inType;
                 }
                 // Note if unspecified swagger.js assumes json in most cases
-                if (node.outtype != undefined && node.outtype != "") {
-                    opts["responseContentType"] = node.outtype;
+                if (node.outType != undefined && node.outType != "") {
+                    opts["responseContentType"] = node.outType;
                 }
 
                 var params;
@@ -285,22 +351,58 @@ module.exports = function(RED) {
 
 // Register the node by name. This must be called before overriding any of the
 // Node functions.
-    RED.nodes.registerType("swagger api",SwaggerApiNode);
+    RED.nodes.registerType("swagger api",SwaggerClientNode);
 
 // Expose internal javascript
-    RED.httpAdmin.get('/swagger/:file', function(req, res){
+    RED.httpAdmin.get('/swagger-js/:file', function(req, res){
 
-        var fs = require("fs");
+        fs.readFile(path.resolve(__dirname, "../node_modules/swagger-client/lib/" + req.params.file),function(err,data) {
+            if (err) {
+                res.send("<html><head></head><body>Error reading the file: <br />" + req.params.file + "</body></html>");
+            } else {
+                res.set('Content-Type', 'text/javascript').send(data);
+            }
+        });
+    });
 
-        if (req.params.file.indexOf("..") > -1) {
-            res.send("<html><head></head><body>Unable to access the file requested.</body></html>");
-        } else {
-            fs.readFile(require('path').resolve(__dirname, "../node_modules/swagger-client/lib/" + req.params.file),function(err,data) {
+    // Expose an index of local swagger descriptions
+    var swaggerDescFolder = path.resolve(__dirname, "../swagger-descriptions");
+
+    // Expose swagger descriptions available locally
+    RED.httpAdmin.get('/swagger-descriptions*', function(req, res){
+
+        // Special treatment for the root folder
+        if (req.params[0] === "" || req.params[0] === "/") {
+            fs.readdir(swaggerDescFolder, function(err, files) {
                 if (err) {
-                    node.log(err);
-                    res.send("<html><head></head><body>Error reading the file: <br />" + err + "</body></html>");
+                    res.send("<html><head></head><body>Error listing swagger descriptions.</body></html>");
                 } else {
-                    res.set('Content-Type', 'text/javascript').send(data);
+                    var dirs = files.filter(function(element) {
+                        return fs.lstatSync(path.join(swaggerDescFolder, element)).isDirectory();
+                    });
+                    res.set('Content-Type', 'text/javascript').send(dirs);
+                }
+            });
+        } else {
+            // Obtain the actual file
+            var resolvedFile = path.join(swaggerDescFolder, req.params[0]);
+            // If top level folder, then return index.json, otherwise get what was requested
+            fs.lstat(resolvedFile, function(err, stats) {
+                if (err) {
+                    res.send("<html><head></head><body>Error no such file or directory</body></html>");
+                } else {
+                    if (stats.isDirectory()) {
+                        resolvedFile = path.join(resolvedFile, "index.json");
+                    }
+
+                    // Get the file and send it
+                    fs.readFile(resolvedFile, function (err, data) {
+                        if (err) {
+                            res.send("<html><head></head><body>Unable to read file or directory</body></html>");
+                        } else {
+                            res.set('Content-Type', 'text/javascript').send(data);
+                        }
+                    });
                 }
             });
         }
