@@ -23,7 +23,7 @@
 module.exports = function(RED) {
 
     "use strict";
-    var fs = require("fs");
+    var fs = require('fs');
     var path = require('path');
     var querystring = require('querystring');
 
@@ -134,7 +134,7 @@ module.exports = function(RED) {
 
             // Use a domain to catch inner exceptions
             d.run(function() {
-                node.swaggerClient = new swagger.SwaggerApi({
+                node.swaggerClient = new swagger.SwaggerClient({
                     url: node.apiUrl,
                     success: function () {
                         if (this.ready) {
@@ -331,11 +331,7 @@ module.exports = function(RED) {
                     }
                 }
 
-                // Use "do" until issue #101 on swagger.js is sorted
-//                node.swaggerClient['apis'][node.resource][node.method](params, responseFunction, errorFunction);
-//                node.swaggerClient['apis'][node.resource][node.method](params, opts, responseFunction, errorFunction);
-                node.swaggerClient['apis'][node.resource]['operations'][node.method]["do"](params, opts, responseFunction, errorFunction);
-
+                node.swaggerClient['apis'][node.resource][node.method](params, opts, responseFunction, errorFunction);
 
             } else {
                 node.warn("API client not ready. Is the Web API accessible?");
@@ -378,7 +374,7 @@ module.exports = function(RED) {
                     res.send("<html><head></head><body>Error listing swagger descriptions.</body></html>");
                 } else {
                     var dirs = files.filter(function(element) {
-                        return fs.lstatSync(path.join(swaggerDescFolder, element)).isDirectory();
+                        return element !== '.git' && fs.lstatSync(path.join(swaggerDescFolder, element)).isDirectory();
                     });
                     res.set('Content-Type', 'text/javascript').send(dirs);
                 }

@@ -16,10 +16,24 @@ Run the following command in the root directory of your Node-RED install
 npm install node-red-contrib-swagger
 ```
 
-## Testing the Node
+## Using the Node
 
-If you want to test your node you may go ahead and use existing swagger descriptions available online.
-For example you may want to use the prototypical example `http://petstore.swagger.wordnik.com/api/api-docs`.  
+Once installed you may be able to invoke any Web API described with Swagger straight away. The only thing that
+you need is to create a swagger configuration by adding the URL of some existing swagger documentation. For instance
+you can give a go to [Dweet.io](https://dweet.io)'s API by using the following URL `https://dweet.io/play/definition`.
+
+Until we provide advanced search support (work in progress) for existing swagger descriptions online, we
+already provide means for serving locally swagger descriptions. This can be used for using your own manually
+crafted descriptions or for reusing descriptions made by others.
+
+We have a Github project where we already provide some of descriptions ready to be grabbed and reused.
+See [https://github.com/kmi/swagger-descriptions](https://github.com/kmi/swagger-descriptions)
+
+Should you have your own swagger description ready to be used you just need make it available to NodeRed via
+an HTTP Server with CORS support. The easiest route is to use the [swagger-descriptions project](https://github.com/kmi/swagger-descriptions)
+approach.
+
+
 
 ## Status
 

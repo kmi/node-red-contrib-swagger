@@ -20,6 +20,8 @@
  @author <a href="mailto:carlos.pedrinaci@open.ac.uk">Carlos Pedrinaci</a> (KMi - The Open University)
 -->
 
+<script src='swagger-js/swagger-client.js'></script>
+
 <script type="text/x-red" data-template-name="swagger configuration">
     <div class="form-row">
         <label for="node-config-input-apiUrl"><i class="fa fa-globe"></i> API URL</label>
@@ -207,7 +209,7 @@
 
             function createClient(apiUrl, selectedAuth, user, password) {
                 if (isValidUrl(apiUrl)) {
-                    form.swagger = new SwaggerApi({
+                    form.swagger = new SwaggerClient({
                         url: apiUrl,
                         useJQuery: true,
                         success: function () {
@@ -371,7 +373,6 @@
 <!-- Finally, the node type is registered along with all of its properties   -->
 <!-- The example below shows a small subset of the properties that can be set-->
 
-<script src='swagger-js/swagger.js'></script>
 <script type="text/javascript">
 
     RED.nodes.registerType('swagger api',{
@@ -582,16 +583,19 @@
                 if (jQuerySelector != undefined) {
                     jQuerySelector.empty();
 
+
+                    // Add the top-level option first
+                    var option = $('<option></option>')
+                            .prop("disabled", true)
+                            .attr("value", "_ADD_")
+                            .text(helpText);
+
                     if ( selectedValue == undefined || selectedValue === "" ) {
                         // add the default select option
-                        var option = $('<option></option>')
-                                .prop("disabled", true)
-                                .prop("selected", true)
-                                .attr("value", "_ADD_")
-                                .text(helpText);
-
-                        jQuerySelector.append(option);
+                        option.prop("selected", true)
                     }
+
+                    jQuerySelector.append(option);
 
                     // Add all the values
                     if (availableValues != undefined) {
@@ -666,7 +670,7 @@
             }
 
             function createClient(apiUrl, resource, method, inType, outType) {
-                form.swagger = new SwaggerApi({
+                form.swagger = new SwaggerClient({
                     url: apiUrl,
                     useJQuery: true,
                     success: function () {
