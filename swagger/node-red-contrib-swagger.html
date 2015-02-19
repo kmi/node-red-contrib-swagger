@@ -81,6 +81,173 @@
         label: function() {
             return this.name ? this.name : this.apiUrl;
         },
+        info: function() {
+            var form = this;
+
+            // Need to create a client (yet again). TODO: to fix when caching of clients is done
+            function createClient(apiUrl) {
+                form.swagger = new SwaggerClient({
+                    url: apiUrl,
+                    useJQuery: true,
+                    success: function () {
+                        if (this.ready === true) {
+                            updateForm();
+                        }
+                    },
+                    failure: function () {
+                        updateForm(new Error("Error obtain information about the API."));
+                    }
+                });
+            }
+
+            function updateForm(err) {
+                var info = '<hr>';
+
+                if (err) {
+                    info = err.message;
+                } else {
+                    if (form.swagger != undefined && form.swagger.ready === true
+                            && form.resource != undefined && form.method != undefined) {
+
+                        var operation = form.swagger.apis[form.resource].operations[form.method];
+                        if (operation != undefined) {
+                            info += '<b>' + form.resource + '.' + form.method + '</b>';
+                            info += '<br /><p align="justify">' + operation.summary + '</p>';
+                            if (operation.notes != undefined) {
+                                info += '<br /><blockquote style="font-size: 11px"><p align="justify" width="90%">' + operation.notes + '</p></blockquote>';
+                            }
+
+                            info += '<br />' + inputDocumentation(operation) + '<br />';
+                            info += '<br />' + outputDocumentation(operation);
+                        }
+                    }
+                }
+
+                // Update the info content
+                $("div#node-help-info.node-help").replaceWith('<div class="node-help" id="node-help-info">' + info + '</div>');
+                // Set CSS properties for swagger models display
+                $("span.strong").remove("font-style").css("font-weight","bold");
+                $("span.propName").remove("font-style").css("font-weight","bold");
+            }
+
+            function inputDocumentation(operation) {
+                var params = operation.parameters;
+
+                result = '<b>Input</b><br />';
+                // Add table header
+                if (params.length > 0) {
+                    result += '<i>(*) indicates mandatory parameters</i><br />';
+                    result += '<table class="table table-striped table-bordered" width="100%">' +
+                    '<tbody>';
+
+                    for (var i = 0, len = params.length; i < len; i++) {
+                        result += '<tr>';
+                        result += '<td><b>' + params[i].name;
+                        if (params[i].required) {
+                            result += ' (*)';
+                        }
+                        result += '</b></td>';
+                        result += '<td align="right">' + params[i].type + '</td>';
+                        result += '</tr>';
+                        result += '<tr>';
+                        result += '<td colspan="2"><p align="justify"><i>' + params[i].description + '</i></p>';
+
+                        if (params[i].defaultValue != undefined) {
+                            result += '<br /> Default value: ' + params[i].defaultValue;
+                        }
+
+                        if (params[i].sampleJSON != undefined) {
+                            result += '<br /> Sample: <pre style="font-size: 11px">' + params[i].sampleJSON + '</pre>';
+                        }
+
+                        result += '</td></tr>';
+                    }
+                    result += '</tbody>' +
+                    '</table>';
+
+                } else {
+                    result += '<i>No input required.</i>';
+                }
+
+                return result;
+            }
+
+            function outputDocumentation(operation) {
+                var result = '';
+
+                // Output
+                result += '<b>Output</b><br />';
+                var type = 'Not Specified';
+                if (operation.type != undefined) {
+                    switch(operation.type) {
+                        case "integer":
+                            type = operation.type;
+                            break;
+
+                        case "string":
+                            type = operation.type;
+                            break;
+
+                        case "number":
+                            type = operation.type;
+                            break;
+
+                        case "boolean":
+                            type = operation.type;
+                            break;
+
+                        case "array":
+                            type = operation.type;
+                            break;
+
+                        default:
+                            type = '<pre style="font-size: 11px">' + operation.responseClassSignature + '</pre>';
+//                            type = operation.responseClassSignature;
+
+                    }
+                } else {
+                    if (operation.$ref != undefined) {
+                        type = '<pre style="font-size: 11px">' + operation.responseClassSignature + '</pre>';
+//                        type = operation.responseClassSignature;
+                    }
+                }
+
+//                result += '<code>' + type + '</code>';
+                result += type + '<br />';
+
+                // Response Messages
+                if (operation.responseMessages != undefined && operation.responseMessages.length > 0) {
+                    result += '<br /><b>Response Messages</b>';
+                    result += '<table class="table table-condensed" width="100%">' +
+                    '<theader><tr>' +
+                    '<td>Status Code</td>' +
+                    '<td>Message</td>' +
+                    '</tr></theader>' +
+                    '<tbody>';
+                    for (var i = 0, len = operation.responseMessages.length; i < len; i++) {
+                        result += '<tr>' +
+                        '<td>' + operation.responseMessages[i].code +'</td>' +
+                        '<td>' + operation.responseMessages[i].message +'</td>' +
+                        '</tr>';
+                    }
+                    result += '</tbody></table>';
+                }
+
+                return result;
+            }
+
+
+            var configNode;
+            if (form.apiConfig != undefined) {
+                configNode = RED.nodes.node(form.apiConfig);
+            }
+
+            if (configNode != undefined) {
+                createClient(configNode.apiUrl);
+            }
+            return "";
+
+        },
         oneditprepare: function() {
 
             var form = this;
