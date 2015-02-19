@@ -1,0 +1,3 @@
+[submodule "swagger-descriptions"]
+	path = swagger-descriptions
+	url = https://github.com/kmi/swagger-descriptions.git
