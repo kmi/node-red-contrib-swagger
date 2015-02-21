@@ -18,36 +18,44 @@ npm install node-red-contrib-swagger
 
 ## Using the Node
 
-Once installed you may be able to invoke any Web API described with Swagger straight away. The only thing that
+Once installed you may be able to invoke any Web API described with swagger straight away. The only thing that
 you need is to create a swagger configuration by adding the URL of some existing swagger documentation. For instance
 you can give a go to [Dweet.io](https://dweet.io)'s API by using the following URL `https://dweet.io/play/definition`.
 
-Until we provide advanced search support (work in progress) for existing swagger descriptions online, we
-already provide means for serving locally swagger descriptions. This can be used for using your own manually
+Until we include advanced search support for existing swagger descriptions online (work in progress), we
+ provide means for serving locally swagger descriptions. This can be used for loading your own manually
 crafted descriptions or for reusing descriptions made by others.
 
-We have a Github project where we already provide some of descriptions ready to be grabbed and reused.
+We have a Github project where we already provide some descriptions ready to be grabbed and reused.
 See [https://github.com/kmi/swagger-descriptions](https://github.com/kmi/swagger-descriptions)
 
 Should you have your own swagger description ready to be used you just need make it available to NodeRed via
-an HTTP Server with CORS support. The easiest route is to use the [swagger-descriptions project](https://github.com/kmi/swagger-descriptions)
-approach.
-
-
+an HTTP Server with CORS support. The easiest route is to use the embedded server within the node to serve the descriptions.
+Essentially, files within [NodeRed_HOME]node_modules/node-red-contrib-swagger/swagger-descriptions are all served locally
+at [http://localhost:1880/swagger-descriptions](http://localhost:1880/swagger-descriptions).
+See [swagger-descriptions project](https://github.com/kmi/swagger-descriptions) for further details.
 
 ## Status
 
-The node is maturing although some issues exist and a couple of features are in the to-do list. 
+The node is maturing although some issues exist and a couple of features are in the to-do list.
+The latest version of the node is v0.4.0.
+
+*Important:* Users that previously used v0.3.0 in their workflows will need to do recreate their swagger nodes
+to use v0.4.0. This is unfortunately necessary to adapt to a a richer means for configuring nodes that will
+help reuse all swagger APIs configured within the same workflow or  different workspaces.
+We expect this change to be long-standing and therefore won't expect such a disruption in future updates.
+
 
 ### Features
 Currently the node provides support for:
  - Parsing and invoking Swagger 1.0+ description
  - Content negotiation both for Request and Response content types
  - Authentication via Basic HTTP Auth and API Key 
- - Invocation of APIs (except those with other non-supported authentication mechanisms). 
+ - Invocation of APIs (except those with other non-supported authentication mechanisms).
+ - Embedded swagger descriptions server included
  
 ### Issues
-Currently the node presents one issue due to an underlying library being used. 
+Currently the node presents one known issue due to an underlying library being used.
 - The parsing of Authentication details does not seem to be done correctly by the swagger-library and therefore authentication details specified at a resource level will not be adequately detected. We expect a solution will soon be implemented at the level of the [Swagger javascript client](https://github.com/wordnik/swagger-js) which would resolve the problem altogether.
 
 ### Future Features
