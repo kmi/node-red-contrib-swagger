@@ -116,9 +116,9 @@ module.exports = function(RED) {
         // Response content type. By default the engine will fall back to "application/json"
         this.outType = n.outType;
 
-        // Authentication credentials
-        this.authConfig = n.authConfig;
-        this.authentication = RED.nodes.getNode(this.authConfig);
+        //// Authentication credentials
+        //this.authConfig = n.authConfig;
+        //this.authentication = RED.nodes.getNode(this.authConfig);
 
         var node = this;
         var swagger = require('swagger-client');

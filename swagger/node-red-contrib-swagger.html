@@ -574,9 +574,9 @@
         oneditprepare: function() {
             var form = this;
 
-            function updateApiTip() {
+            function updateApiTip(apiUrl) {
                 var tipText = "Choose an existing Swagger API or configure a new one.";
-                if(form.swagger != undefined && form.swagger.ready === true) {
+                if(form.swagger != undefined && form.swagger.ready === true && apiUrl != undefined) {
                     if (form.swagger.info != null) {
                         var title = form.swagger.info.title;
                         var description = form.swagger.info.description;
@@ -691,58 +691,15 @@
                 populateSelectList($("#node-input-outType"), outType, produces, "Choose a Content Type");
             }
 
-            // API Updated
-            $("#node-input-apiConfig").change(function(){
-                var apiConfig = $("#node-input-apiConfig").val();
-                // The last check is necessary to prevent updates after the form is created.
-                if (apiConfig != undefined && apiConfig !== "_ADD_") {
-                    configNode = RED.nodes.node(apiConfig);
-                    if (configNode != undefined) {
-                        if (form.swagger == undefined || configNode.apiUrl !== form.swagger.url) {
-                            createClient(configNode.apiUrl);
-                        } else if (configNode.apiUrl === form.swagger.url) {
-                            // it has been preloaded
-                            populateForm(form.resource, form.method, form.inType, form.outType);
-                        }
-                    }
-                } else if (apiConfig === "_ADD_") {
-                    populateForm();
-                }
-            });
-
-            // Resource Updated
-            $("#node-input-resource").change(function() {
-                var selectedResource = $("#node-input-resource option:selected").val();
-                if (selectedResource != undefined && selectedResource !== "") {
-                    updateResourceTip(selectedResource);
-                    updateMethodsList(selectedResource);
-                    updateVisibility();
-                }
-            });
-
-            // Method Updated
-            $("#node-input-method").change(function() {
-                var selectedResource = $("#node-input-resource option:selected").val();
-                var selectedMethod = $("#node-input-method option:selected").val();
-                if (selectedResource != undefined && selectedResource !== "" && selectedMethod != undefined && selectedMethod !== "") {
-                    updateMethodTip(selectedResource, selectedMethod);
-                    updateRequestTypes(selectedResource, selectedMethod);
-                    updateResponseTypes(selectedResource, selectedMethod);
-                    updateVisibility();
-                }
-            });
-
-            function populateForm(resource, method, inType, outType) {
-                if (form.swagger != undefined && form.swagger.ready === true) {
-                    updateApiTip();
-                    updateResourcesList(resource);
-                    updateResourceTip(resource);
-                    updateMethodsList(resource, method);
-                    updateMethodTip(resource, method);
-                    updateRequestTypes(resource, method, inType);
-                    updateResponseTypes(resource, method, outType);
-                }
-                updateVisibility();
+            function populateForm(apiUrl, resource, method, inType, outType) {
+                updateApiTip(apiUrl);
+                updateResourcesList(resource);
+                updateResourceTip(resource);
+                updateMethodsList(resource, method);
+                updateMethodTip(resource, method);
+                updateRequestTypes(resource, method, inType);
+                updateResponseTypes(resource, method, outType);
+                updateVisibility(resource, method, inType, outType);
             }
 
             function populateSelectList(jQuerySelector, selectedValue, availableValues, helpText, valueProperty) {
@@ -843,7 +800,7 @@
                     success: function () {
                         if (this.ready === true) {
                             RED.notify("Loaded API Description: " + this.url, "success");
-                            populateForm(resource, method, inType, outType);
+                            populateForm(apiUrl, resource, method, inType, outType);
                         }
                     },
                     failure: function () {
@@ -852,20 +809,51 @@
                 });
             }
 
-            var configNode;
+            // Add events
 
-            if (form.apiConfig != undefined) {
-                configNode = RED.nodes.node(form.apiConfig);
-            } else {
-                $("#node-input-apiConfig").val("_ADD_");
-                configNode = undefined;
-            }
+            // API Updated
+            $("#node-input-apiConfig").change(function(){
+                var apiConfig = $("#node-input-apiConfig").val();
+                // The last check is necessary to prevent updates after the form is created.
+                if (apiConfig != undefined && apiConfig !== "_ADD_") {
+                    configNode = RED.nodes.node(apiConfig);
+                    if (configNode != undefined) {
+                        if (form.swagger == undefined || configNode.apiUrl !== form.swagger.url) {
+                            createClient(configNode.apiUrl);
+                        } else if (configNode.apiUrl === form.swagger.url) {
+                            // it has been preloaded
+                            populateForm(configNode.apiUrl, form.resource, form.method, form.inType, form.outType);
+                        }
+                    }
+                } else if (apiConfig === "_ADD_") {
+                    populateForm();
+                }
+            });
 
-            if (configNode != undefined) {
-                // Create or use the swagger client and populate the form
-                createClient(configNode.apiUrl, form.resource, form.method, form.inType, form.outType);
-            } else {
+            // Resource Updated
+            $("#node-input-resource").change(function() {
+                var selectedResource = $("#node-input-resource option:selected").val();
+                if (selectedResource != undefined && selectedResource !== "") {
+                    updateResourceTip(selectedResource);
+                    updateMethodsList(selectedResource);
+                }
                 updateVisibility();
+            });
+
+            // Method Updated
+            $("#node-input-method").change(function() {
+                var selectedResource = $("#node-input-resource option:selected").val();
+                var selectedMethod = $("#node-input-method option:selected").val();
+                if (selectedResource != undefined && selectedResource !== "" && selectedMethod != undefined && selectedMethod !== "") {
+                    updateMethodTip(selectedResource, selectedMethod);
+                    updateRequestTypes(selectedResource, selectedMethod);
+                    updateResponseTypes(selectedResource, selectedMethod);
+                }
+                updateVisibility();
+            });
+
+            if (form.apiConfig == undefined) {
+                $("#node-input-apiConfig").val("_ADD_");
             }
 
         }
