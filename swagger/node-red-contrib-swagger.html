@@ -78,6 +78,11 @@
             apiUrl: {required:true},
             name: {value:"",required:false}
         },
+        credentials: {
+            authType: {type: "text"},
+            user: {type: "text"},
+            password: {type: "password"}
+        },
         label: function() {
             return this.name ? this.name : this.apiUrl;
         },
@@ -86,7 +91,7 @@
             var form = this;
 
             function updateApiTip() {
-                var tipText = "Provide the URL of a Swagger description to load the node. <br/>For example: http://petstore.swagger.wordnik.com/api/api-docs";
+                var tipText = "Provide the URL of a Swagger description to load the node. <br/>For example: https://dweet.io/play/definition";
                 if(form.swagger != undefined && form.swagger.ready === true) {
                     if (form.swagger.info != null) {
                         var title = form.swagger.info.title;
@@ -181,7 +186,6 @@
             }
 
             function supportedAuths(swaggerClient) {
-
                 if (swaggerClient != undefined && swaggerClient.ready === true && swaggerClient.authSchemes != undefined) {
                     return Object.keys(swaggerClient.authSchemes).map(function(authKey) {
                         if ( swaggerClient.authSchemes[authKey] != undefined && swaggerClient.authSchemes[authKey].hasOwnProperty("type")) {
@@ -193,18 +197,9 @@
                 }
             }
 
-            function populateForm(supportedAuths, selectedAuth, user, password) {
+            function populateForm(supportedAuths, selectedAuth) {
                 updateApiTip();
                 updateAuthForm(supportedAuths, selectedAuth);
-
-                if (user) {
-                    $('#node-config-input-user').val(user);
-                }
-                if (password) {
-                    $('#node-config-input-password').val('__PWRD__');
-                } else {
-                    $('#node-config-input-password').val('');
-                }
             }
 
             function createClient(apiUrl, selectedAuth, user, password) {
@@ -225,15 +220,18 @@
                 }
             }
 
-            // To ensure the first update does not trigger this
-            var initialised = false;
-
             // API Updated
             $("#node-config-input-apiUrl").change(function(){
                 var apiUrl = $("#node-config-input-apiUrl").val();
                 // The last check is necessary to prevent updates after the form is created.
-                if ( isValidUrl(apiUrl) && initialised) {
-                    createClient(apiUrl);
+                if ( isValidUrl(apiUrl) ) {
+                    // The client has not been created, so we could have valid credentials
+                    if (form.swagger == undefined ) {
+                        createClient(apiUrl, form.credentials.authType, form.credentials.user, form.credentials.password);
+
+                    } else if (form.swagger.url !== apiUrl) {
+                        createClient(apiUrl);
+                    }
                 }
             });
 
@@ -243,42 +241,6 @@
                 updateAuthVisibility(supportedAuths(form.swagger), selectedAuth);
             });
 
-            $.getJSON('swagger-configuration/'+this.id, function(authData) {
-                // Create or use the swagger client and populate the form
-                if (form.swagger == undefined || form.apiUrl !== form.swagger.url) {
-                    createClient(form.apiUrl, authData.authType, authData.user, authData.password);
-                    initialised = true;
-                } else if ( form.apiUrl === form.swagger.url) {
-                    populateForm(supportedAuths(form.swagger), authData.authType, authData.user, authData.password);
-                }
-            });
-
-
-        },
-        oneditsave: function() {
-            var newUser = $('#node-config-input-user').val();
-            var newPass = $('#node-config-input-password').val();
-            var newAuthType = $('#node-config-input-authType option:selected').val();
-            var credentials = {};
-            credentials.authType = newAuthType;
-            credentials.user = newUser;
-            if (newPass != '__PWRD__') {
-                credentials.password = newPass;
-            }
-
-            $.ajax({
-                url: 'swagger-configuration/'+this.id,
-                type: 'POST',
-                data: credentials,
-                success:function(result){}
-            });
-        },
-        ondelete: function() {
-            $.ajax({
-                url: 'swagger-configuration/'+this.id,
-                type: 'DELETE',
-                success: function(result) {}
-            });
         }
     });
 </script>
@@ -576,7 +538,7 @@
 
             function updateApiTip(apiUrl) {
                 var tipText = "Choose an existing Swagger API or configure a new one.";
-                if(form.swagger != undefined && form.swagger.ready === true && apiUrl != undefined) {
+                if(isClientReady()) {
                     if (form.swagger.info != null) {
                         var title = form.swagger.info.title;
                         var description = form.swagger.info.description;
@@ -599,7 +561,7 @@
 
             function updateResourcesList(selectedResource) {
                 var resources = null;
-                if(form.swagger != undefined && form.swagger.ready === true) {
+                if(isClientReady()) {
                     // Populate available resources
                     resources = form.swagger.apisArray;
                 }
@@ -608,7 +570,7 @@
 
             function updateResourceTip(selectedResource) {
                 var tipText = "No help information for the resource selected.";
-                if (form.swagger != undefined && form.swagger.ready === true && selectedResource != undefined && selectedResource !== "") {
+                if (isClientReady() && selectedResource != undefined && selectedResource !== "" ) {
                     var apiResource = form.swagger.apis[selectedResource];
                     if (apiResource != undefined) {
                         var description = apiResource.description;
@@ -635,7 +597,7 @@
 
             function updateMethodTip(selectedResource, selectedMethod) {
                 var tipText = "No help information for the method selected.";
-                if (form.swagger != undefined && form.swagger.ready === true && selectedResource != undefined && selectedResource !== ""
+                if (isClientReady() && selectedResource != undefined && selectedResource !== ""
                         && selectedMethod != undefined && selectedMethod !== "") {
                     var apiResource = form.swagger.apis[selectedResource];
                     if (apiResource != undefined) {
@@ -661,7 +623,7 @@
 
             function updateRequestTypes(selectedResource, selectedMethod, inType) {
                 var consumes = null;
-                if (form.swagger != undefined && form.swagger.ready === true && selectedResource != undefined && selectedResource !== ""
+                if (isClientReady() && selectedResource != undefined && selectedResource !== ""
                         && selectedMethod != undefined && selectedMethod !== "") {
                     var apiResource = form.swagger.apis[selectedResource];
                     if (apiResource != undefined) {
@@ -677,7 +639,7 @@
 
             function updateResponseTypes(selectedResource, selectedMethod, outType) {
                 var produces = null;
-                if (form.swagger != undefined && form.swagger.ready === true && selectedResource != undefined && selectedResource !== ""
+                if (isClientReady() && selectedResource != undefined && selectedResource !== ""
                         && selectedMethod != undefined && selectedMethod !== "") {
                     var apiResource = form.swagger.apis[selectedResource];
                     if (apiResource != undefined) {
@@ -809,6 +771,18 @@
                 });
             }
 
+            function isClientReady() {
+                var apiConfig = $("#node-input-apiConfig").val();
+                if (apiConfig) {
+                    configNode = RED.nodes.node(apiConfig);
+                    if (configNode && form.swagger && form.swagger.url === configNode.apiUrl && form.swagger.ready === true) {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
             // Add events
 
             // API Updated
@@ -819,9 +793,12 @@
                     configNode = RED.nodes.node(apiConfig);
                     if (configNode != undefined) {
                         if (form.swagger == undefined || configNode.apiUrl !== form.swagger.url) {
+
+                            console.log("API changed -- create client");
                             createClient(configNode.apiUrl);
                         } else if (configNode.apiUrl === form.swagger.url) {
                             // it has been preloaded
+                            console.log("API changed -- preloaded");
                             populateForm(configNode.apiUrl, form.resource, form.method, form.inType, form.outType);
                         }
                     }
@@ -833,7 +810,7 @@
             // Resource Updated
             $("#node-input-resource").change(function() {
                 var selectedResource = $("#node-input-resource option:selected").val();
-                if (selectedResource != undefined && selectedResource !== "") {
+                if (isClientReady() && selectedResource != undefined && selectedResource !== "") {
                     updateResourceTip(selectedResource);
                     updateMethodsList(selectedResource);
                 }
@@ -844,7 +821,7 @@
             $("#node-input-method").change(function() {
                 var selectedResource = $("#node-input-resource option:selected").val();
                 var selectedMethod = $("#node-input-method option:selected").val();
-                if (selectedResource != undefined && selectedResource !== "" && selectedMethod != undefined && selectedMethod !== "") {
+                if (isClientReady() && selectedResource != undefined && selectedResource !== "" && selectedMethod != undefined && selectedMethod !== "") {
                     updateMethodTip(selectedResource, selectedMethod);
                     updateRequestTypes(selectedResource, selectedMethod);
                     updateResponseTypes(selectedResource, selectedMethod);

@@ -27,75 +27,20 @@ module.exports = function(RED) {
     var path = require('path');
     var querystring = require('querystring');
 
-    RED.httpAdmin.get('/swagger-configuration/:id',function(req,res) {
-        var credentials = RED.nodes.getCredentials(req.params.id);
-
-        if (credentials) {
-            res.send(JSON.stringify({authType: credentials.authType, user:credentials.user,password:(credentials.password&&credentials.password!=="")}));
-        } else {
-            res.send(JSON.stringify({}));
-        }
-    });
-
-    RED.httpAdmin.delete('/swagger-configuration/:id',function(req,res) {
-        RED.nodes.deleteCredentials(req.params.id);
-        res.send(200);
-    });
-
-    RED.httpAdmin.post('/swagger-configuration/:id',function(req,res) {
-        var body = "";
-        req.on('data', function(chunk) {
-            body+=chunk;
-        });
-        req.on('end', function(){
-            var newCreds = querystring.parse(body);
-            var credentials = RED.nodes.getCredentials(req.params.id)||{};
-            if (newCreds.authType == null || newCreds.authType === "") {
-                delete credentials.authType;
-            } else {
-                credentials.authType = newCreds.authType;
-            }
-            if (newCreds.user == null || newCreds.user === "") {
-                delete credentials.user;
-            } else {
-                credentials.user = newCreds.user;
-            }
-            if (newCreds.password === "") {
-                delete credentials.password;
-            } else {
-                credentials.password = newCreds.password||credentials.password;
-            }
-            RED.nodes.addCredentials(req.params.id,credentials);
-            res.send(200);
-        });
-    });
-
     function SwaggerConfigurationNode(n) {
         RED.nodes.createNode(this,n);
 
         this.apiUrl = n.apiUrl;
         this.name = n.name;
-
-        var credentials = {};
-        if (n.user) {
-            credentials.authType = n.authType;
-            credentials.user = n.user;
-            credentials.password = n.pass;
-            RED.nodes.addCredentials(n.id,credentials);
-            this.authType = n.authType;
-            this.user = n.user;
-            this.password = n.pass;
-        } else {
-            credentials = RED.nodes.getCredentials(n.id);
-            if (credentials) {
-                this.authType = credentials.authType;
-                this.user = credentials.user;
-                this.password = credentials.password;
-            }
-        }
     }
 
-    RED.nodes.registerType("swagger configuration",SwaggerConfigurationNode);
+    RED.nodes.registerType("swagger configuration",SwaggerConfigurationNode, {
+        credentials: {
+            authType: {type: "text"},
+            user: {type: "text"},
+            password: {type: "password"}
+        }
+    });
 
     // The main node definition - most things happen in here
     function SwaggerClientNode(n) {
@@ -115,10 +60,6 @@ module.exports = function(RED) {
         this.inType = n.inType;
         // Response content type. By default the engine will fall back to "application/json"
         this.outType = n.outType;
-
-        //// Authentication credentials
-        //this.authConfig = n.authConfig;
-        //this.authentication = RED.nodes.getNode(this.authConfig);
 
         var node = this;
         var swagger = require('swagger-client');
@@ -270,9 +211,9 @@ module.exports = function(RED) {
             var scheme = requiredAuthentication(node.swaggerClient, node.resource, node.method);
             if (scheme != undefined) {
                 // ensure we have the same kind of credentials necessary
-                var authType = node.apiConfig.authType;
-                var user = node.apiConfig.user;
-                var password = node.apiConfig.password;
+                var authType = node.apiConfig.credentials.authType;
+                var user = node.apiConfig.credentials.user;
+                var password = node.apiConfig.credentials.password;
 
                 if (authType != undefined && scheme != undefined && authType === scheme.type) {
                     // Add the credentials to the client
