@@ -16,6 +16,11 @@ Run the following command in the root directory of your Node-RED install
 npm install node-red-contrib-swagger
 ```
 
+or for a global installation
+```
+npm install -g node-red-contrib-swagger
+```
+
 ## Using the Node
 
 Once installed you may be able to invoke any Web API described with swagger straight away. The only thing that
@@ -48,11 +53,14 @@ We expect this change to be long-standing and therefore won't expect such a disr
 
 ### Features
 Currently the node provides support for:
- - Parsing and invoking Swagger 1.0+ description
+ - Parsing and invoking Swagger 1.0 and 1.2 descriptions
  - Content negotiation both for Request and Response content types
  - Authentication via Basic HTTP Auth and API Key 
  - Invocation of APIs (except those with other non-supported authentication mechanisms).
- - Embedded swagger descriptions server included
+ - Embedded swagger descriptions server included sitting at http://node.red.base.url/swagger-descriptions
+ - Feedback information about the status of the remote API
+ - More detailed dynamic documentation of the API being used by the node so as to better help users in
+ figuring out what the request message should look like. Selecting the node should populate the info tab with detailed documentation
  
 ### Issues
 Currently the node presents one known issue due to an underlying library being used.
@@ -60,7 +68,6 @@ Currently the node presents one known issue due to an underlying library being u
 
 ### Future Features
 We shall be providing the following functionality soon:
-- More detailed dynamic documentation of the API being used by the node so as to better help users in figuring out what the request message should look like.
 - Support for OAuth 2.0 authentication.
 
 License

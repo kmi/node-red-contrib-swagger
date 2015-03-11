@@ -35,48 +35,61 @@ module.exports = function(RED) {
 
         this.clientReady = false;
         this.creatingClient = false;
-        this.apiReachable = true;
+        this.queue = [];
 
         var node = this;
 
         var swagger = require('swagger-client');
 
-        function createClient() {
-            node.creatingClient = true;
-            // Handling of errors
-            var domain = require('domain');
-            var d = domain.create();
-            d.on('error', function(err) {
-                node.warn(err);
-            });
-
-            if (node.apiUrl != undefined) {
-                // Use a domain to catch inner exceptions
-                d.run(function() {
-                    node.swaggerClient = new swagger.SwaggerClient({
-                        url: node.apiUrl,
-                        success: function () {
-                            if (this.ready) {
-                                node.creatingClient = false;
-                                node.clientReady = true;
-                                node.log("Client created for: " + node.apiUrl);
-                                // We should setup authentication here once and for all but authentication is
-                                // handled as a global variable accross all swagger clients by swagger.js for now
-                                // TODO: Fix this when swagger.js updates authentication handling
-                            }
-                        },
-                        // define failure function
-                        failure: function () {
-                            node.warn("Unable to create client for: " + node.apiUrl);
-                        }
+        // Create a client and notify the callback (true=success)
+        this.createClient = function (callback) {
+            if (!this.clientReady) {
+                if (!this.creatingClient) {
+                    // Trigger the creation
+                    node.creatingClient = true;
+                    node.queue.push(callback);
+                    // Handling of errors
+                    var domain = require('domain');
+                    var d = domain.create();
+                    d.on('error', function (err) {
+                        node.warn(err);
                     });
-                });
-            }
-        }
 
-        this.createClient = function () {
-            if (!this.clientReady && !this.creatingClient) {
-                createClient();
+                    if (node.apiUrl != undefined) {
+                        // Use a domain to catch inner exceptions
+                        d.run(function () {
+                            node.swaggerClient = new swagger.SwaggerClient({
+                                url: node.apiUrl,
+                                success: function () {
+                                    if (this.ready) {
+                                        node.creatingClient = false;
+                                        node.clientReady = true;
+                                        node.log("Client created for: " + node.apiUrl);
+                                        for (var i = 0, size = node.queue.length; i < size; i++ ) {
+                                            node.queue.pop()(true);
+                                        }
+                                        // We should setup authentication here once and for all but authentication is
+                                        // handled as a global variable accross all swagger clients by swagger.js for now
+                                        // TODO: Fix this when swagger.js updates authentication handling
+                                    }
+                                },
+                                // define failure function
+                                failure: function () {
+                                    node.warn("Unable to create client for: " + node.apiUrl);
+                                    for (var i = 0, size = node.queue.length; i < size; i++ ) {
+                                        node.queue.pop()(false);
+                                    }
+                                }
+                            });
+                        });
+                    }
+                } else {
+                    // Creation started, waiting for callback
+                    node.queue.push(callback);
+                }
+            } else {
+                // It's ready
+                callback(true);
             }
         }
 
@@ -85,18 +98,7 @@ module.exports = function(RED) {
             if (node.clientReady) {
                 // Deal with authorisation if necessary
                 setupAuthentication(resource, method);
-                node.swaggerClient['apis'][resource][method](params, opts, responseCallback, errorCallback,
-                    function (response) {
-                        // handle normal response
-                        node.apiReachable = true;
-                        responseCallback(response);
-                    }
-                    ,
-                    function (response) {
-                        // handle error
-                        node.apiReachable = false;
-                        errorCallback(response);
-                    });
+                node.swaggerClient['apis'][resource][method](params, opts, responseCallback, errorCallback);
 
             } else {
                 // Client is not ready, send undefined
@@ -202,10 +204,13 @@ module.exports = function(RED) {
         // Response content type. By default the engine will fall back to "application/json"
         this.outType = n.outType;
 
+        this.errorCount = 0;
+
         var node = this;
 
         function processResponse(response) {
             var msg = {};
+            node.errorCount = 0;
             if (response == undefined ) {
                 // In principle this branch should not be executed but in case
                 node.warn("API successfully invoked but no response obtained.");
@@ -246,6 +251,7 @@ module.exports = function(RED) {
 
         function processError(response) {
             var msg = {};
+            node.errorCount ++;
             if (response == undefined ) {
                 // In principle this branch should not be executed but in case
                 node.warn("Error invoking API. The client is not ready.");
@@ -271,49 +277,67 @@ module.exports = function(RED) {
         // Store local copies of the node configuration (as defined in the .html)
         this.apiConfig = RED.nodes.getNode(n.apiConfig);
         if (this.apiConfig) {
+            // handle status
+            this.status({fill:"red",shape:"ring",text:"disconnected"});
 
-            this.apiConfig.createClient();
+            this.apiConfig.createClient(function(success) {
+                if (success) {
+                    node.status({fill: "green", shape: "ring", text: "client ready"});
 
-            this.on("input", function (msg) {
-                // Set the options
-                var opts = {};
-                // Note if unspecified swagger.js assumes json in most cases
-                if (node.inType != undefined && node.inType != "") {
-                    opts["requestContentType"] = node.inType;
-                }
-                // Note if unspecified swagger.js assumes json in most cases
-                if (node.outType != undefined && node.outType != "") {
-                    opts["responseContentType"] = node.outType;
-                }
-
-                var params;
-                // Check the type of the input
-                if (msg.payload == undefined || msg.payload === '') {
-                    params = {};
-                } else {
-                    if (typeof msg.payload === "string") {
-                        // It's a string: parse it as JSON
-                        try {
-                            params = JSON.parse(msg.payload);
-                        } catch (error) {
-                            node.warn("The input should be a JSON object. Ignoring");
-                            return;
+                    // Handle input events
+                    node.on("input", function (msg) {
+                        // Set the options
+                        var opts = {};
+                        // Note if unspecified swagger.js assumes json in most cases
+                        if (node.inType != undefined && node.inType != "") {
+                            opts["requestContentType"] = node.inType;
                         }
-                    } else {
-                        // Already an object
-                        params = msg.payload;
-                    }
+                        // Note if unspecified swagger.js assumes json in most cases
+                        if (node.outType != undefined && node.outType != "") {
+                            opts["responseContentType"] = node.outType;
+                        }
+
+                        var params;
+                        // Check the type of the input
+                        if (msg.payload == undefined || msg.payload === '') {
+                            params = {};
+                        } else {
+                            if (typeof msg.payload === "string") {
+                                // It's a string: parse it as JSON
+                                try {
+                                    params = JSON.parse(msg.payload);
+                                } catch (error) {
+                                    node.warn("The input should be a JSON object. Ignoring");
+                                    return;
+                                }
+                            } else {
+                                // Already an object
+                                params = msg.payload;
+                            }
+                        }
+
+                        // invoke
+                        node.apiConfig.invoke(node.resource, node.method, params, opts, processResponse, processError);
+
+                        // Update status
+                        if (node.errorCount === 0) {
+                            node.status({fill:"green",shape:"dot",text:"online"});
+                        } else if (node.errorCount <= 3) {
+                            node.status({fill:"yellow",shape:"ring",text:"connection issues (" + node.errorCount + ")"});
+                        } else {
+                            node.status({fill:"yellow",shape:"dot",text:"API down"});
+                        }
+                    });
+
+                    node.on("close", function () {
+                        // Called when the node is shutdown - eg on redeploy.
+                        // Allows ports to be closed, connections dropped etc.
+                        // eg: this.client.disconnect();
+                    });
+
+                } else {
+                    node.status({fill: "red", shape: "dot", text: "unavailable"});
                 }
-
-                // invoke
-                this.apiConfig.invoke(node.resource, node.method, params, opts, processResponse, processError);
-
-            });
-
-            this.on("close", function () {
-                // Called when the node is shutdown - eg on redeploy.
-                // Allows ports to be closed, connections dropped etc.
-                // eg: this.client.disconnect();
             });
         }
     }
