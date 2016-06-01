@@ -160,7 +160,7 @@ module.exports = function(RED) {
             if (swaggerClient != undefined && swaggerClient.ready === true) {
                 // Auth schemes definitions
                 var authSchemes = swaggerClient.apis[resource].api.authSchemes;
-                if (authSchemes != null) {
+                if (authSchemes != undefined && authSchemes != null) {
                     var authSchemesKeys = Object.keys(authSchemes);
                     if (authSchemesKeys.length > 0) {
                         // Authentications schemes are defined
@@ -295,10 +295,10 @@ module.exports = function(RED) {
         if (req.params.file.indexOf("..") > -1) {
             res.send("<html><head></head><body>Unable to access the file requested.</body></html>");
         } else {
-            fs.readFile(require('path').resolve(__dirname, "../node_modules/swagger-client/lib/" + req.params.file),function(err,data) {
+            var filePath = require('path').resolve(__dirname, "../node_modules/swagger-client/lib/" + req.params.file);
+            fs.readFile(filePath,function(err,data) {
                 if (err) {
-                    node.log(err);
-                    res.send("<html><head></head><body>Error reading the file: <br />" + err + "</body></html>");
+                    res.send('<html><head></head><body>Error reading the file: <br />' + req.params.file + '</body></html>');
                 } else {
                     res.set('Content-Type', 'text/javascript').send(data);
                 }

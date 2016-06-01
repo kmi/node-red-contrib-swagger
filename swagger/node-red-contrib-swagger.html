@@ -235,7 +235,7 @@
             }
 
             function updateApiTip() {
-                var tipText = "Provide the URL of a Swagger description to load the node. <br/>For example: http://petstore.swagger.wordnik.com/api/api-docs";
+                var tipText = "Provide the URL of a Swagger description to load the node. <br/>For example: https://dweet.io/play/definition";
                 if(form.swagger != undefined && form.swagger.ready === true) {
                     if (form.swagger.info != null) {
                         var title = form.swagger.info.title;
@@ -446,28 +446,30 @@
                 if (swaggerClient != undefined && swaggerClient.ready === true) {
                     // Auth schemes definitions
                     var authSchemes = swaggerClient.authSchemes;
-                    var authSchemesKeys = Object.keys(authSchemes);
-                    if (authSchemesKeys.length > 0) {
-                        // Authentications schemes are defined
+                    if (authSchemes != undefined && authSchemes != null) {
+                        var authSchemesKeys = Object.keys(authSchemes);
+                        if (authSchemesKeys.length > 0) {
+                            // Authentications schemes are defined
 
-                        // Find out the scheme needed. Check the operation and then the resource.
-                        // Operations override authentication from resources
-                        // We assume only the first one applies
+                            // Find out the scheme needed. Check the operation and then the resource.
+                            // Operations override authentication from resources
+                            // We assume only the first one applies
 
-                        var opAuths = swaggerClient.apis[resource].operations[method].authorizations;
-                        if (opAuths != undefined) {
-                            var opAuthSchemesKeys = Object.keys(opAuths);
-                            if (opAuthSchemesKeys.length > 0) {
-                                // The operation specifies its authentication
-                                scheme = authSchemes[opAuthSchemesKeys[0]];
-                            }
-                        } else {
-                            // Get the resources authentication requirements instead
-                            var resAuths = swaggerClient.apis[resource].api.authorizations;
-                            var authSchemesKeys = Object.keys(resAuths);
-                            if (authSchemesKeys.length > 0) {
-                                // The resource specifies its authentication
-                                scheme = authSchemes[resAuths[0]];
+                            var opAuths = swaggerClient.apis[resource].operations[method].authorizations;
+                            if (opAuths != undefined) {
+                                var opAuthSchemesKeys = Object.keys(opAuths);
+                                if (opAuthSchemesKeys.length > 0) {
+                                    // The operation specifies its authentication
+                                    scheme = authSchemes[opAuthSchemesKeys[0]];
+                                }
+                            } else {
+                                // Get the resources authentication requirements instead
+                                var resAuths = swaggerClient.apis[resource].api.authorizations;
+                                var authSchemesKeys = Object.keys(resAuths);
+                                if (authSchemesKeys.length > 0) {
+                                    // The resource specifies its authentication
+                                    scheme = authSchemes[resAuths[0]];
+                                }
                             }
                         }
                     }
