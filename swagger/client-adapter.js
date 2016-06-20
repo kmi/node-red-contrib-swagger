@@ -89,6 +89,9 @@ SwaggerAuthorizations.prototype.apply = function (obj, securities) {
   var applyAll = !securities;
   var flattenedSecurities = [];
 
+  // favor the object-level authorizations over global
+  var authz = obj.clientAuthorizations || this.authz;
+
   // Securities could be [ {} ]
   _.each(securities, function (obj, key) {
 
@@ -103,7 +106,7 @@ SwaggerAuthorizations.prototype.apply = function (obj, securities) {
     });
   });
 
-  _.each(this.authz, function (auth, authName) {
+  _.each(authz, function (auth, authName) {
     if(applyAll || _.includes(flattenedSecurities, authName)) {
       var newStatus = auth.apply(obj);
       status = status && !!newStatus; // logical ORs regarding status
@@ -237,6 +240,7 @@ var reservedClientTags = [
   'failure',
   'finish',
   'help',
+  'host',
   'idFromOp',
   'info',
   'initialize',
@@ -259,7 +263,8 @@ var reservedClientTags = [
   'tagFromLabel',
   'title',
   'url',
-  'useJQuery'
+  'useJQuery',
+  'jqueryAjaxCache'
 ];
 // We have to keep track of the function/property names to avoid collisions for tag names which are used to allow the
 // following usage: 'client.apis.{tagName}'
@@ -291,8 +296,9 @@ var SwaggerClient = module.exports = function (url, options) {
   this.resourceCount = 0;
   this.url = null;
   this.useJQuery = false;
+  this.jqueryAjaxCache = false;
   this.swaggerObject = {};
-  this.deferredClient = Q.defer();
+  this.deferredClient = undefined;
 
   this.clientAuthorizations = new auth.SwaggerAuthorizations();
 
@@ -314,6 +320,13 @@ SwaggerClient.prototype.initialize = function (url, options) {
     this.url = options.url;
   }
 
+  if(this.url && this.url.indexOf('http') === -1) {
+    // no protocol, so we can only use window if it exists
+    if(window && window.location) {
+      this.url = window.location.origin + this.url;
+    }
+  }
+
   options = options || {};
   this.clientAuthorizations.add(options.authorizations);
   this.swaggerRequestHeaders = options.swaggerRequestHeaders || 'application/json;charset=utf-8,*/*';
@@ -323,12 +336,20 @@ SwaggerClient.prototype.initialize = function (url, options) {
   this.parameterMacro = options.parameterMacro || null;
   this.usePromise = options.usePromise || null;
 
+
+  if(this.usePromise) {
+    this.deferredClient = Q.defer();
+  }
+
   if (typeof options.success === 'function') {
     this.success = options.success;
   }
-
   if (options.useJQuery) {
     this.useJQuery = options.useJQuery;
+  }
+
+  if (options.jqueryAjaxCache) {
+    this.jqueryAjaxCache = options.jqueryAjaxCache;
   }
 
   if (options.enableCookies) {
@@ -363,6 +384,7 @@ SwaggerClient.prototype.build = function (mock) {
 
   var obj = {
     useJQuery: this.useJQuery,
+    jqueryAjaxCache: this.jqueryAjaxCache,
     url: this.url,
     method: 'get',
     headers: {
@@ -443,6 +465,7 @@ SwaggerClient.prototype.buildFromSpec = function (response) {
   this.produces = response.produces;
   this.schemes = response.schemes || [];
   this.securityDefinitions = response.securityDefinitions;
+  this.security = response.security;
   this.title = response.title || '';
 
   if (response.externalDocs) {
@@ -618,6 +641,27 @@ SwaggerClient.prototype.buildFromSpec = function (response) {
     });
   });
 
+  // sort the apisArray according to the tags
+  var sortedApis = [];
+  _.forEach(Object.keys(definedTags), function (tag) {
+    var _apiToAdd;
+    var pos;
+    for(pos in self.apisArray) {
+      var _api = self.apisArray[pos];
+      if(_api && tag === _api.name) {
+        sortedApis.push(_api);
+        self.apisArray[pos] = null;
+      }
+    }
+  });
+  // add anything left
+  _.forEach(self.apisArray, function (api) {
+    if(api) {
+      sortedApis.push(api);
+    }
+  });
+  self.apisArray = sortedApis;
+
   _.forEach(response.definitions, function (definitionObj, definition) {
     definitionObj['id'] = definition.toLowerCase();
     definitionObj['name'] = definition;
@@ -751,6 +795,23 @@ SwaggerClient.prototype.setBasePath = function (basePath) {
   }
 };
 
+SwaggerClient.prototype.setSchemes = function (schemes) {
+  this.schemes = schemes;
+
+  if(schemes && schemes.length > 0) {
+    if(this.apis) {
+      _.forEach(this.apis, function (api) {
+        if (api.operations) {
+          _.forEach(api.operations, function (operation) {
+            operation.scheme = schemes[0];
+          });
+        }
+      });
+    }
+  }
+};
+
+
 SwaggerClient.prototype.fail = function (message) {
   if (this.usePromise) {
     this.deferredClient.reject(message);
@@ -877,6 +938,7 @@ SwaggerHttp.prototype.execute = function (obj, opts) {
   }
 
   var success = obj.on.response;
+  var error = obj.on.error;
 
   var requestInterceptor = function(data) {
     if(opts && opts.requestInterceptor) {
@@ -892,6 +954,17 @@ SwaggerHttp.prototype.execute = function (obj, opts) {
     return success(data);
   };
 
+  var errorInterceptor = function(data) {
+    if(opts && opts.responseInterceptor) {
+      data = opts.responseInterceptor.apply(data);
+    }
+    error(data);
+  };
+
+  obj.on.error = function(data) {
+    errorInterceptor(data);
+  };
+
   obj.on.response = function(data) {
     responseInterceptor(data);
   };
@@ -899,12 +972,11 @@ SwaggerHttp.prototype.execute = function (obj, opts) {
   if (_.isObject(obj) && _.isObject(obj.body)) {
     // special processing for file uploads via jquery
     if (obj.body.type && obj.body.type === 'formData'){
-      obj.contentType = false;
-      obj.processData = false;
-
-      delete obj.headers['Content-Type'];
-    } else {
-      obj.body = JSON.stringify(obj.body);
+      if(opts.useJQuery) {
+        obj.contentType = false;
+        obj.processData = false;
+        delete obj.headers['Content-Type'];
+      }
     }
   }
 
@@ -948,29 +1020,10 @@ JQueryHttpClient.prototype.execute = function (obj) {
   }
 
   obj.type = obj.method;
-  obj.cache = false;
-  delete obj.useJQuery;
-
-  /*
-  obj.beforeSend = function (xhr) {
-    var key, results;
-    if (obj.headers) {
-      results = [];
-      for (key in obj.headers) {
-        if (key.toLowerCase() === 'content-type') {
-          results.push(obj.contentType = obj.headers[key]);
-        } else if (key.toLowerCase() === 'accept') {
-          results.push(obj.accepts = obj.headers[key]);
-        } else {
-          results.push(xhr.setRequestHeader(key, obj.headers[key]));
-        }
-      }
-      return results;
-    }
-  };*/
-
+  obj.cache = obj.jqueryAjaxCache;
   obj.data = obj.body;
-
+  delete obj.jqueryAjaxCache;
+  delete obj.useJQuery;
   delete obj.body;
 
   obj.complete = function (response) {
@@ -1041,17 +1094,55 @@ SuperagentHttpClient.prototype.execute = function (obj) {
   }
   var headers = obj.headers || {};
   var r = request[method](obj.url);
-  var name;
-  for (name in headers) {
-    r.set(name, headers[name]);
-  }
 
   if (obj.enableCookies) {
     r.withCredentials();
   }
 
-  if (obj.body) {
-    r.send(obj.body);
+  if(obj.body) {
+    if(_.isObject(obj.body)) {
+      var contentType = obj.headers['Content-Type'] || '';
+      if (contentType.indexOf('multipart/form-data') === 0) {
+        delete headers['Content-Type'];
+        if({}.toString.apply(obj.body) === '[object FormData]') {
+          var itr = obj.body.keys();
+          while(true) {
+            var v = itr.next();
+            if(v.done) {
+              break;
+            }
+            var key = v.value;
+            var value = obj.body.get(key);
+            console.log({}.toString.apply(value));
+            if({}.toString.apply(value) === '[object File]') {
+              r.attach(key, value);
+            }
+            else {
+              r.field(key, value);
+            }
+          }
+        }
+        else {
+          var keyname;
+          for (var keyname in obj.body) {
+            var value = obj.body[keyname];
+            r.field(keyname, value);
+          }
+        }
+      }
+      else if (_.isObject(obj.body)) {
+        obj.body = JSON.stringify(obj.body);
+        r.send(obj.body);
+      }
+    }
+    else {
+      r.send(obj.body);
+    }
+  }
+
+  var name;
+  for (name in headers) {
+    r.set(name, headers[name]);
   }
 
   if(typeof r.buffer === 'function') {
@@ -1184,18 +1275,57 @@ Resolver.prototype.resolve = function (spec, arg1, arg2, arg3) {
   // definitions
   for (name in spec.definitions) {
     var definition = spec.definitions[name];
-    for (propertyName in definition.properties) {
-      property = definition.properties[propertyName];
-      if(_.isArray(property.allOf)) {
-        this.processAllOf(root, name, property, resolutionTable, unresolvedRefs, spec);
+    if(definition['$ref']) {
+      this.resolveInline(root, spec, definition, resolutionTable, unresolvedRefs, definition);
+    }
+    else {
+      for (propertyName in definition.properties) {
+        property = definition.properties[propertyName];
+        if (_.isArray(property.allOf)) {
+          this.processAllOf(root, name, property, resolutionTable, unresolvedRefs, spec);
+        }
+        else {
+          this.resolveTo(root, property, resolutionTable, '/definitions');
+        }
+      }
+
+      if (definition.allOf) {
+        this.processAllOf(root, name, definition, resolutionTable, unresolvedRefs, spec);
+      }
+    }
+  }
+
+  // shared parameters
+  spec.parameters = spec.parameters || {};
+  for(name in spec.parameters) {
+    var parameter = spec.parameters[name];
+    if (parameter.in === 'body' && parameter.schema) {
+      if(_.isArray(parameter.schema.allOf)) {
+        // move to a definition
+        var modelName = 'inline_model';
+        var name = modelName;
+        var done = false; var counter = 0;
+        while(!done) {
+          if(typeof spec.definitions[name] === 'undefined') {
+            done = true;
+            break;
+          }
+          name = modelName + '_' + counter;
+          counter ++;
+        }
+        spec.definitions[name] = { allOf: parameter.schema.allOf };
+        delete parameter.schema.allOf;
+        parameter.schema.$ref = '#/definitions/' + name;
+        this.processAllOf(root, name, spec.definitions[name], resolutionTable, unresolvedRefs, spec);
       }
       else {
-        this.resolveTo(root, property, resolutionTable, '/definitions');
+        this.resolveTo(root, parameter.schema, resolutionTable, location);
       }
     }
 
-    if(definition.allOf) {
-      this.processAllOf(root, name, definition, resolutionTable, unresolvedRefs, spec);
+    if (parameter.$ref) {
+      // parameter reference
+      this.resolveInline(root, spec, parameter, resolutionTable, unresolvedRefs, parameter.$ref);
     }
   }
 
@@ -1287,6 +1417,12 @@ Resolver.prototype.resolve = function (spec, arg1, arg2, arg3) {
                 delete responseObj.schema.type;
                 responseObj.schema.$ref = '#/definitions/' + name;
                 this.processAllOf(root, name, spec.definitions[name], resolutionTable, unresolvedRefs, spec);
+              }
+              else if('array' === responseObj.schema.type) {
+                if(responseObj.schema.items && responseObj.schema.items.$ref) {
+                  // response reference
+                  this.resolveInline(root, spec, responseObj.schema.items, resolutionTable, unresolvedRefs, location);
+                }
               }
               else {
                 this.resolveTo(root, response.schema, resolutionTable, location);
@@ -1620,7 +1756,6 @@ Resolver.prototype.retainRoot = function(obj, root) {
         if(root) {
           var lastChar = root.slice(-1);
           if(lastChar !== '/' && (item.indexOf('#') !== 0 && item.indexOf('http://') !== 0 && item.indexOf('https://'))) {
-            console.log('working with ' + item);
             appendHash = false;
             var parts = root.split('\/');
             parts = parts.splice(0, parts.length - 1);
@@ -1714,6 +1849,14 @@ Resolver.prototype.resolveInline = function (root, spec, property, resolutionTab
       resolutionTable.push({obj: property, resolveAs: 'inline', root: root, key: key, location: location});
     } else if (ref.indexOf('#') === 0) {
       location = ref.split('#')[1];
+      resolutionTable.push({obj: property, resolveAs: 'inline', root: root, key: key, location: location});
+    } else if (ref.indexOf('/') === 0 && ref.indexOf('#') === -1) {
+      location = ref;
+      var matches = root.match(/^https?\:\/\/([^\/?#]+)(?:[\/?#]|$)/i);
+      if(matches) {
+        root = matches[0] + ref.substring(1);
+        location = '';
+      }
       resolutionTable.push({obj: property, resolveAs: 'inline', root: root, key: key, location: location});
     }
     else {
@@ -2892,6 +3035,12 @@ SwaggerSpecConverter.prototype.resourceListing = function(obj, swagger, opts, ca
     _opts.responseInterceptor = opts.responseInterceptor;
   }
 
+  var swaggerRequestHeaders = 'application/json';
+
+  if(opts && opts.swaggerRequestHeaders) {
+    swaggerRequestHeaders = opts.swaggerRequestHeaders;
+  }
+
   if(expectedCount === 0) {
     this.finish(callback, swagger);
   }
@@ -2910,7 +3059,7 @@ SwaggerSpecConverter.prototype.resourceListing = function(obj, swagger, opts, ca
     }
     var http = {
       url: absolutePath,
-      headers: {accept: 'application/json'},
+      headers: { accept: swaggerRequestHeaders },
       on: {},
       method: 'get'
     };
@@ -3079,7 +3228,7 @@ var Model = module.exports = function (name, definition, models, modelPropertyMa
   this.definition = definition || {};
   this.isArray = definition.type === 'array';
   this.models = models || {};
-  this.name = definition.title || name || 'Inline Model';
+  this.name = name || definition.title || 'Inline Model';
   this.modelPropertyMacro = modelPropertyMacro || function (property) {
     return property.default;
   };
@@ -3155,16 +3304,21 @@ var Operation = module.exports = function (parent, scheme, operationId, httpMeth
   this.responses = (args.responses || {});
   this.scheme = scheme || parent.scheme || 'http';
   this.schemes = args.schemes || parent.schemes;
-  this.security = args.security;
+  this.security = args.security || parent.security;
   this.summary = args.summary || '';
   this.type = null;
   this.useJQuery = parent.useJQuery;
+  this.jqueryAjaxCache = parent.jqueryAjaxCache;
   this.enableCookies = parent.enableCookies;
   this.parameterMacro = parent.parameterMacro || function (operation, parameter) {
     return parameter.default;
   };
 
   this.inlineModels = [];
+
+  if(this.basePath !== '/' && this.basePath.slice(-1) == '/') {
+    this.basePath = this.basePath.slice(0, -1);
+  }
 
   if (typeof this.deprecated === 'string') {
     switch(this.deprecated.toLowerCase()) {
@@ -3234,15 +3388,17 @@ var Operation = module.exports = function (parent, scheme, operationId, httpMeth
       }
     }
 
-    if (typeof param['enum'] !== 'undefined') {
+    var enumValues = param['enum'] || (param.items && param.items['enum']);
+
+    if (typeof enumValues !== 'undefined') {
       var id;
 
       param.allowableValues = {};
       param.allowableValues.values = [];
       param.allowableValues.descriptiveValues = [];
 
-      for (id = 0; id < param['enum'].length; id++) {
-        var value = param['enum'][id];
+      for (id = 0; id < enumValues.length; id++) {
+        var value = enumValues[id];
         var isDefault = (value === param.default || value+'' === param.default);
 
         param.allowableValues.values.push(value);
@@ -3559,7 +3715,7 @@ Operation.prototype.getHeaderParams = function (args) {
 
 Operation.prototype.urlify = function (args) {
   var formParams = {};
-  var requestUrl = this.path;
+  var requestUrl = this.path.replace(/#.*/, ''); // remove URL fragment
   var querystring = ''; // grab params from the args, build the querystring along the way
 
   for (var i = 0; i < this.parameters.length; i++) {
@@ -3578,7 +3734,7 @@ Operation.prototype.urlify = function (args) {
 
         requestUrl = requestUrl.replace(reg, value);
       } else if (param.in === 'query' && typeof args[param.name] !== 'undefined') {
-        if (querystring === '') {
+        if (querystring === '' && requestUrl.indexOf('?') < 0) {
           querystring += '?';
         } else {
           querystring += '&';
@@ -3590,10 +3746,10 @@ Operation.prototype.urlify = function (args) {
           if (Array.isArray(qp)) {
             querystring += this.encodeQueryCollection(param.collectionFormat, param.name, qp);
           } else {
-            querystring += this.encodeQueryParam(param.name) + '=' + this.encodeQueryParam(args[param.name]);
+            querystring += this.encodeQueryKey(param.name) + '=' + this.encodeQueryParam(args[param.name]);
           }
         } else {
-          querystring += this.encodeQueryParam(param.name) + '=' + this.encodeQueryParam(args[param.name]);
+          querystring += this.encodeQueryKey(param.name) + '=' + this.encodeQueryParam(args[param.name]);
         }
       } else if (param.in === 'formData') {
         formParams[param.name] = args[param.name];
@@ -3635,7 +3791,10 @@ Operation.prototype.getBody = function (headers, args, opts) {
       if (param.in === 'body') {
         body = args[param.name];
       } else if (param.in === 'formData') {
-        formParams[param.name] = args[param.name];
+        formParams[param.name] = {
+          param: param,
+          value: args[param.name]
+        };
         hasFormParams = true;
       }
     }
@@ -3664,20 +3823,29 @@ Operation.prototype.getBody = function (headers, args, opts) {
     var encoded = '';
 
     for (key in formParams) {
-      value = formParams[key];
+      var param = formParams[key].param;
+      value = formParams[key].value;
 
       if (typeof value !== 'undefined') {
-        if (encoded !== '') {
-          encoded += '&';
+        if (Array.isArray(value)) {
+          if (encoded !== '') {
+            encoded += '&';
+          }
+          encoded += this.encodeQueryCollection(param.collectionFormat, key, value);
         }
+        else {
+          if (encoded !== '') {
+            encoded += '&';
+          }
 
-        encoded += encodeURIComponent(key) + '=' + encodeURIComponent(value);
+          encoded += encodeURIComponent(key) + '=' + encodeURIComponent(value);
+        }
       }
     }
 
     body = encoded;
   } else if (isMultiPart) {
-    if (opts.useJQuery) {
+    if (typeof FormData === 'function') {
       var bodyParam = new FormData();
 
       bodyParam.type = 'formData';
@@ -3686,19 +3854,61 @@ Operation.prototype.getBody = function (headers, args, opts) {
         value = args[key];
 
         if (typeof value !== 'undefined') {
-          // required for jquery file upload
-          if (value.type === 'file' && value.value) {
-            delete headers['Content-Type'];
-
+          if({}.toString.apply(value) === '[object File]') {
+            bodyParam.append(key, value);
+          }
+          else if (value.type === 'file' && value.value) {
             bodyParam.append(key, value.value);
           } else {
-            bodyParam.append(key, value);
+            if (Array.isArray(value)) {
+              bodyParam.append(key, this.encodeQueryCollection(param.collectionFormat, key, value));
+            }
+            else {
+              bodyParam.append(key, value);
+            }
           }
         }
       }
-
       body = bodyParam;
     }
+    else {
+      bodyParam = {};
+      for (key in formParams) {
+        value = args[key];
+        if (Array.isArray(value)) {
+          var delimeter;
+          var format = param.collectionFormat || 'multi';
+          if(format === 'ssv') {
+            delimeter = ' ';
+          }
+          else if(format === 'pipes') {
+            delimeter = '|';
+          }
+          else if(format === 'tsv') {
+            delimeter = '\t';
+          }
+          else {
+            delimeter = ',';
+          }
+          var data;
+          value.forEach(function(v) {
+            if(data) {
+              data += delimeter;
+            }
+            else {
+              data = '';
+            }
+            data += v;
+          });
+          bodyParam[key] = data;
+        }
+        else {
+          bodyParam[key] = value;
+        }
+      }
+      body = bodyParam;
+    }
+    headers['Content-Type'] = 'multipart/form-data';
   }
 
   return body;
@@ -3791,9 +4001,12 @@ Operation.prototype.execute = function (arg1, arg2, arg3, arg4, parent) {
     error = (error || this.parent.defaultErrorCallback || helpers.log);
   }
 
-
   if (typeof opts.useJQuery === 'undefined') {
     opts.useJQuery = this.useJQuery;
+  }
+
+  if (typeof opts.jqueryAjaxCache === 'undefined') {
+    opts.jqueryAjaxCache = this.jqueryAjaxCache;
   }
 
   if (typeof opts.enableCookies === 'undefined') {
@@ -3844,8 +4057,10 @@ Operation.prototype.execute = function (arg1, arg2, arg3, arg4, parent) {
     body: body,
     enableCookies: opts.enableCookies,
     useJQuery: opts.useJQuery,
+    jqueryAjaxCache: opts.jqueryAjaxCache,
     deferred: deferred,
     headers: headers,
+    clientAuthorizations: opts.clientAuthorizations,
     on: {
       response: function (response) {
         if (deferred) {
@@ -3925,18 +4140,32 @@ Operation.prototype.setContentTypes = function (args, opts) {
   }
 
   // if there's a body, need to set the consumes header via requestContentType
+  var hasBody = body || definedFileParams.length || definedFormParams.length;
   if (this.method === 'post' || this.method === 'put' || this.method === 'patch' ||
-      ((this.method === 'delete' || this.method === 'get') && body) ) {
+      ((this.method === 'delete' || this.method === 'get') && hasBody)) {
     if (opts.requestContentType) {
       consumes = opts.requestContentType;
     }
     // if any form params, content type must be set
     if (definedFormParams.length > 0) {
+      consumes = undefined;
       if (opts.requestContentType) {             // override if set
         consumes = opts.requestContentType;
       } else if (definedFileParams.length > 0) { // if a file, must be multipart/form-data
         consumes = 'multipart/form-data';
-      } else {                                   // default to x-www-from-urlencoded
+      } else {
+        if (this.consumes && this.consumes.length > 0) {
+          // use the consumes setting
+          for(var c in this.consumes) {
+            var chk = this.consumes[c];
+            if(chk.indexOf('application/x-www-form-urlencoded') === 0 || chk.indexOf('multipart/form-data') === 0) {
+              consumes = chk;
+            }
+          }
+        }
+      }
+      if(typeof consumes === 'undefined') {
+        // default to x-www-from-urlencoded
         consumes = 'application/x-www-form-urlencoded';
       }
     }
@@ -3957,6 +4186,9 @@ Operation.prototype.setContentTypes = function (args, opts) {
 
   if ((consumes && body !== '') || (consumes === 'application/x-www-form-urlencoded')) {
     headers['Content-Type'] = consumes;
+  }
+  else if(this.consumes && this.consumes.length > 0 && this.consumes[0] === 'application/x-www-form-urlencoded') {
+    headers['Content-Type'] = this.consumes[0];
   }
 
   if (accepts) {
@@ -4006,17 +4238,77 @@ Operation.prototype.asCurl = function (args1, args2) {
       results.push('--header \'' + key + ': ' + value + '\'');
     }
   }
+  var isFormData = false;
+  var isMultipart = false;
+
+  var type = obj.headers['Content-Type'];
+  if(type && type.indexOf('application/x-www-form-urlencoded') === 0) {
+    isFormData = true;
+  }
+  else if (type && type.indexOf('multipart/form-data') === 0) {
+    isFormData = true;
+    isMultipart = true;
+  }
 
   if (obj.body) {
     var body;
-
     if (_.isObject(obj.body)) {
-      body = JSON.stringify(obj.body);
+      if(isMultipart) {
+        isMultipart = true;
+        // add the form data
+        for(var i = 0; i < this.parameters.length; i++) {
+          var parameter = this.parameters[i];
+          if(parameter.in === 'formData') {
+            if (!body) {
+              body = '';
+            }
+
+            var paramValue;
+            if(typeof FormData === 'function' && obj.body instanceof FormData) {
+              paramValue = obj.body.get(parameter.name);
+            }
+            else {
+              paramValue = obj.body[parameter.name];
+            }
+            if (paramValue) {
+              if (parameter.type === 'file') {
+                if(paramValue.name) {
+                  body += '-F @' + paramValue.name + ' ';
+                }
+              }
+              else {
+                body += '-F ';
+                if (Array.isArray(paramValue)) {
+                  body += this.encodeQueryCollection(parameter.collectionFormat, parameter.name, paramValue);
+                } else {
+                  body += this.encodeQueryKey(parameter.name) + '=' + paramValue;
+                }
+                body += ' ';
+              }
+            }
+          }
+
+        }
+      }
+      if(!body) {
+        body = JSON.stringify(obj.body);
+      }
     } else {
       body = obj.body;
     }
+    // escape @ => %40, ' => %27
+    body = body.replace(/\'/g, '%27').replace(/\n/g, " \\ \n ");
 
-    results.push('-d \'' + body.replace(/\'/g, '\\u0027') + '\'');
+    if(!isFormData) {
+      // escape & => %26
+      body = body.replace(/&/g, '%26');
+    }
+    if(isMultipart) {
+      results.push(body);
+    }
+    else {
+      results.push('-d \'' + body.replace(/@/g, '%40') + '\'');
+    }
   }
 
   return 'curl ' + (results.join(' ')) + ' \'' + obj.url + '\'';
@@ -4030,7 +4322,7 @@ Operation.prototype.encodePathCollection = function (type, name, value) {
   if (type === 'ssv') {
     separator = '%20';
   } else if (type === 'tsv') {
-    separator = '\\t';
+    separator = '%09';
   } else if (type === 'pipes') {
     separator = '|';
   } else {
@@ -4052,11 +4344,12 @@ Operation.prototype.encodeQueryCollection = function (type, name, value) {
   var encoded = '';
   var i;
 
+  type = type || 'default';
   if (type === 'default' || type === 'multi') {
     for (i = 0; i < value.length; i++) {
       if (i > 0) {encoded += '&';}
 
-      encoded += this.encodeQueryParam(name) + '=' + this.encodeQueryParam(value[i]);
+      encoded += this.encodeQueryKey(name) + '=' + this.encodeQueryParam(value[i]);
     }
   } else {
     var separator = '';
@@ -4066,7 +4359,7 @@ Operation.prototype.encodeQueryCollection = function (type, name, value) {
     } else if (type === 'ssv') {
       separator = '%20';
     } else if (type === 'tsv') {
-      separator = '\\t';
+      separator = '%09';
     } else if (type === 'pipes') {
       separator = '|';
     } else if (type === 'brackets') {
@@ -4075,14 +4368,14 @@ Operation.prototype.encodeQueryCollection = function (type, name, value) {
           encoded += '&';
         }
 
-        encoded += this.encodeQueryParam(name) + '[]=' + this.encodeQueryParam(value[i]);
+        encoded += this.encodeQueryKey(name) + '[]=' + this.encodeQueryParam(value[i]);
       }
     }
 
     if (separator !== '') {
       for (i = 0; i < value.length; i++) {
         if (i === 0) {
-          encoded = this.encodeQueryParam(name) + '=' + this.encodeQueryParam(value[i]);
+          encoded = this.encodeQueryKey(name) + '=' + this.encodeQueryParam(value[i]);
         } else {
           encoded += separator + this.encodeQueryParam(value[i]);
         }
@@ -4091,6 +4384,11 @@ Operation.prototype.encodeQueryCollection = function (type, name, value) {
   }
 
   return encoded;
+};
+
+Operation.prototype.encodeQueryKey = function (arg) {
+  return encodeURIComponent(arg)
+      .replace('%5B','[').replace('%5D', ']').replace('%24', '$');
 };
 
 Operation.prototype.encodeQueryParam = function (arg) {

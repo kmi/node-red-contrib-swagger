@@ -107,58 +107,46 @@ module.exports = function(RED) {
         }
 
         function getRequiredAuth(resource, method) {
-            var scheme;
+            var schemes = [];
             if (node.swaggerClient != undefined && node.swaggerClient.ready === true) {
                 // Auth schemes definitions
-                var authSchemes = node.swaggerClient.apis[resource].api.authSchemes;
-                if (authSchemes != null) {
-                    var authSchemesKeys = Object.keys(authSchemes);
-                    if (authSchemesKeys.length > 0) {
-                        // Authentications schemes are defined
+                var secDefinitions = node.swaggerClient.securityDefinitions;
+                if (secDefinitions != null && Object.keys(secDefinitions).length > 0) {
+                    // Authentications schemes are defined
+                    // Find out the scheme needed. Check the operation and then the API.
+                    // Operations override authentication from the top level API
+                    // All security schemes apply.
+                    var auths = node.swaggerClient.security;
 
-                        // Find out the scheme needed. Check the operation and then the resource.
-                        // Operations override authentication from resources
-                        // We assume only the first one applies
+                    var opAuths = node.swaggerClient.apis[resource].operations[method].security;
+                    if (opAuths != undefined) {
+                        auths = opAuths;
+                    }
 
-                        var opAuths = node.swaggerClient.apis[resource].operations[method].authorizations;
-                        if (opAuths != undefined) {
-                            var opAuthSchemesKeys = Object.keys(opAuths);
-                            if (opAuthSchemesKeys.length > 0) {
-                                // The operation specifies its authentication
-                                scheme = authSchemes[opAuthSchemesKeys[0]];
-                                scheme.name = opAuthSchemesKeys[0];
-                            }
-                        } else {
-                            // Get the resources authentication requirements instead
-                            var resAuths = node.swaggerClient.apis[resource].api.authorizations;
-                            var authSchemesKeys = Object.keys(resAuths);
-                            if (authSchemesKeys.length > 0) {
-                                // The resource specifies its authentication
-                                scheme = authSchemes[resAuths[0]];
-                                scheme.name = resAuths[0];
-                            }
+                    if (auths != undefined) {
+                        for (var i in auths) {
+                            var scheme = secDefinitions[Object.keys(auths[i])[0]];
+                            schemes.push(scheme);
                         }
                     }
                 }
             }
-            return scheme;
+            return schemes;
         }
 
         function setupAuthentication(resource, method) {
             // Figure out if we need authentication and if necessary deal with it
 
+            var schemes = getRequiredAuth(resource, method);
+            if (schemes != undefined) {
+                if (schemes.length >= 2) {
+                    // All schemes apply
+                    // TODO: This isn't yet supported
+                    node.warn("This API requires several authentication methods. This is not yet supported.");
+                }
 
-            // TODO: FIXED?
-            // The current implementation of Swagger.js has authorizations as a global variable.
-            // Clean it and set it up at every invocation ...
-            // TODO: Fix it if swagger.js provides a better approach to this
-            //var auth;
-            //for (auth in swagger.authorizations.authz) {
-            //    swagger.authorizations.remove(auth);
-            //}
+                var scheme = schemes[0];
 
-            var scheme = getRequiredAuth(resource, method);
-            if (scheme != undefined) {
                 // ensure we have the same kind of credentials necessary
                 var authType = node.credentials.authType;
                 var user = node.credentials.user;
@@ -168,12 +156,12 @@ module.exports = function(RED) {
                     // Add the credentials to the client
                     switch(scheme.type) {
                         case 'apiKey':
-                            Swagger.authorizations.add(scheme.name, new Swagger.ApiKeyAuthorization(scheme.keyname, password, scheme.passAs));
+                            node.swaggerClient.clientAuthorizations.add(scheme.name, new SwaggerClient.ApiKeyAuthorization(scheme.keyname, password, scheme.passAs));
                             break;
 
                         case 'basic':
                             // The first parameter for the password authorization is unclear to me (and not used by node.swagger-client?)
-                            Swagger.authorizations.add(scheme.name, new Swagger.PasswordAuthorization(scheme.type, user, password));
+                            node.swaggerClient.clientAuthorizations.add(scheme.name, new SwaggerClient.PasswordAuthorization(scheme.type, user, password));
                             break;
 
                         //TODO: handle oauth2

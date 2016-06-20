@@ -187,10 +187,10 @@
             }
 
             function supportedAuths(swaggerClient) {
-                if (swaggerClient != undefined && swaggerClient.ready === true && swaggerClient.authSchemes != undefined) {
-                    return Object.keys(swaggerClient.authSchemes).map(function(authKey) {
-                        if ( swaggerClient.authSchemes[authKey] != undefined && swaggerClient.authSchemes[authKey].hasOwnProperty("type")) {
-                            return swaggerClient.authSchemes[authKey]["type"];
+                if (swaggerClient != undefined && swaggerClient.ready === true && swaggerClient.securityDefinitions != undefined) {
+                    return Object.keys(swaggerClient.securityDefinitions).map(function(authKey) {
+                        if ( swaggerClient.securityDefinitions[authKey] != undefined && swaggerClient.securityDefinitions[authKey].hasOwnProperty("type")) {
+                            return swaggerClient.securityDefinitions[authKey]["type"];
                         }
                     });
                 } else {
