@@ -39,7 +39,7 @@ module.exports = function(RED) {
 
         var node = this;
 
-        var swagger = require('swagger-client');
+        var SwaggerClient = require('swagger-client');
 
         // Create a client and notify the callback (true=success)
         this.createClient = function (callback) {
@@ -58,7 +58,7 @@ module.exports = function(RED) {
                     if (node.apiUrl != undefined) {
                         // Use a domain to catch inner exceptions
                         d.run(function () {
-                            node.swaggerClient = new swagger.SwaggerClient({
+                            node.swaggerClient = new SwaggerClient({
                                 url: node.apiUrl,
                                 success: function () {
                                     if (this.ready) {
@@ -146,13 +146,16 @@ module.exports = function(RED) {
 
         function setupAuthentication(resource, method) {
             // Figure out if we need authentication and if necessary deal with it
+
+
+            // TODO: FIXED?
             // The current implementation of Swagger.js has authorizations as a global variable.
             // Clean it and set it up at every invocation ...
             // TODO: Fix it if swagger.js provides a better approach to this
-            var auth;
-            for (auth in swagger.authorizations.authz) {
-                swagger.authorizations.remove(auth);
-            }
+            //var auth;
+            //for (auth in swagger.authorizations.authz) {
+            //    swagger.authorizations.remove(auth);
+            //}
 
             var scheme = getRequiredAuth(resource, method);
             if (scheme != undefined) {
@@ -165,12 +168,12 @@ module.exports = function(RED) {
                     // Add the credentials to the client
                     switch(scheme.type) {
                         case 'apiKey':
-                            swagger.authorizations.add(scheme.name, new swagger.ApiKeyAuthorization(scheme.keyname, password, scheme.passAs));
+                            Swagger.authorizations.add(scheme.name, new Swagger.ApiKeyAuthorization(scheme.keyname, password, scheme.passAs));
                             break;
 
-                        case 'basicAuth':
+                        case 'basic':
                             // The first parameter for the password authorization is unclear to me (and not used by node.swagger-client?)
-                            swagger.authorizations.add(scheme.name, new swagger.PasswordAuthorization(scheme.type, user, password));
+                            Swagger.authorizations.add(scheme.name, new Swagger.PasswordAuthorization(scheme.type, user, password));
                             break;
 
                         //TODO: handle oauth2
@@ -346,12 +349,15 @@ module.exports = function(RED) {
 // Node functions.
     RED.nodes.registerType("swagger api",SwaggerClientNode);
 
-// Expose internal javascript
-    RED.httpAdmin.get('/swagger-js/:file', function(req, res){
+    // Expose internal javascript
+    RED.httpAdmin.get('/swagger/client-adapter.js', function(req, res){
 
-        fs.readFile(path.resolve(__dirname, "../node_modules/swagger-client/lib/" + req.params.file),function(err,data) {
+        var fs = require("fs");
+
+        var filePath = require('path').resolve(__dirname, "./client-adapter.js");
+        fs.readFile(filePath,function(err,data) {
             if (err) {
-                res.send("<html><head></head><body>Error reading the file: <br />" + req.params.file + "</body></html>");
+                res.send('<html><head></head><body>Error reading the file: client-adapter.js<br /></body></html>');
             } else {
                 res.set('Content-Type', 'text/javascript').send(data);
             }

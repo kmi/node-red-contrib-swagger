@@ -20,7 +20,7 @@
  @author <a href="mailto:carlos.pedrinaci@open.ac.uk">Carlos Pedrinaci</a> (KMi - The Open University)
 -->
 
-<script src='swagger-js/swagger-client.js'></script>
+<script src='swagger/client-adapter.js' type='text/javascript'></script>
 
 <script type="text/x-red" data-template-name="swagger configuration">
     <div class="form-row">
@@ -40,9 +40,9 @@
         <label for="node-config-input-authType" style="display: inline-block; vertical-align: middle; width:35%;"><i class="fa fa-bookmark"></i> Authentication</label>
         <select type="text" id="node-config-input-authType" style="vertical-align: middle; width:60%;">
             <option value="_ADD_">Choose an Authentication Type</option>
-            <option value="basicAuth">HTTP Basic Authentication</option>
+            <option value="basic">HTTP Basic Authentication</option>
             <option value="apiKey">API Key</option>
-            <option disabled value="oauth2">OAuth 2</option>
+            <option value="oauth2">OAuth 2</option>
         </select>
     </div>
 
@@ -50,7 +50,7 @@
         <div>
             The Web API has declared that for some methods <i>authentication may be necessary</i>.
             The supported authentication means are listed above. <br />
-            <b>Note: </b> usually not all methods require authentication. Whenever authentication is necessary this method will automatically make use of the credentials configured.
+            <b>Note: </b> usually not all methods require authentication. Whenever authentication is necessary this node will automatically make use of the credentials configured.
         </div>
     </div>
 
@@ -92,10 +92,10 @@
 
             function updateApiTip() {
                 var tipText = "Provide the URL of a Swagger description to load the node. <br/>For example: https://dweet.io/play/definition";
-                if(window.swagger != undefined && window.swagger.ready === true) {
-                    if (window.swagger.info != null) {
-                        var title = window.swagger.info.title;
-                        var description = window.swagger.info.description;
+                if(form.client != undefined && form.client.ready === true) {
+                    if (form.client.info != null) {
+                        var title = form.client.info.title;
+                        var description = form.client.info.description;
                         if (title != undefined && title !== "" && description != undefined && description != "") {
                             tipText = "<b>" + title + "</b>: <br/><i>" + description + "</i>";
                         } else {
@@ -104,11 +104,11 @@
                             } else if (description != undefined && description != "") {
                                 tipText = description;
                             } else {
-                                tipText = "Loaded description for <i>" + window.swagger.basePath + "</i>";
+                                tipText = "Loaded description for <i>" + form.client.url + "</i>";
                             }
                         }
                     } else {
-                        tipText = "Loaded description for <i>" + window.swagger.basePath + "</i>";
+                        tipText = "Loaded description for <i>" + form.client.url + "</i>";
                     }
                 }
                 tipText = "<div>" + tipText + "</div>";
@@ -121,13 +121,12 @@
             }
 
             function updateAuthOptions(supportedAuths, selectedAuth) {
-
                 // Update list of possible Auths
                 $("#node-config-input-authType > option").each(function () {
-                    if ($.inArray($(this).val(), supportedAuths)) {
-                        $(this).attr("disabled", true);
-                    } else {
+                    if ($.inArray($(this).val(), supportedAuths) >= 0) {
                         $(this).attr("disabled", false);
+                    } else {
+                        $(this).attr("disabled", true);
                     }
                 });
 
@@ -148,6 +147,8 @@
                     $("#node-config-input-authType-tips-row").show();
 
                     switch (selectedAuth) {
+                        //TODO: Provide support for further Auths
+
                         case "apiKey":
                             var label = '<label id="node-config-input-password-label" for="node-config-input-password" style="width:35%;"><i class="fa fa-lock"></i> API Key</label>';
                             $("#node-config-input-password-label").replaceWith(label);
@@ -156,7 +157,7 @@
                             $("#node-config-input-password-row").show();
                             break;
 
-                        case "basicAuth":
+                        case "basic":
                             var label = '<label id="node-config-input-password-label" for="node-config-input-password" style="width:35%;"><i class="fa fa-lock"></i> Password</label>';
                             $("#node-config-input-password-label").replaceWith(label);
                             $("#node-config-input-password").attr("placeholder","API Password");
@@ -204,13 +205,13 @@
 
             function createClient(apiUrl, selectedAuth, user, password) {
                 if (isValidUrl(apiUrl)) {
-                    window.swagger = new SwaggerClient({
+                    form.client = new SwaggerClient({
                         url: apiUrl,
                         useJQuery: true,
                         success: function () {
                             if (this.ready === true) {
                                 RED.notify("Loaded API Description: " + this.url, "success");
-                                populateForm(supportedAuths(window.swagger), selectedAuth, user, password);
+                                populateForm(supportedAuths(form.client), selectedAuth, user, password);
                             }
                         },
                         failure: function () {
@@ -236,7 +237,7 @@
             // Auth type Updated
             $("#node-config-input-authType").change(function() {
                 var selectedAuth = $("#node-config-input-authType option:selected").val();
-                updateAuthVisibility(supportedAuths(window.swagger), selectedAuth);
+                updateAuthVisibility(supportedAuths(form.client), selectedAuth);
             });
 
         }
@@ -367,13 +368,21 @@
         info: function() {
             var form = this;
 
+            function isClientReady(apiUrl) {
+                if (apiUrl && form.client && form.client.url === apiUrl && form.client.isBuilt === true) {
+                    return true;
+                }
+
+                return false;
+            }
+
             // Need to create a client (yet again). TODO: to fix when caching of clients is done
             function createClient(apiUrl) {
-                window.swagger = new SwaggerClient({
+                form.client = new SwaggerClient({
                     url: apiUrl,
                     useJQuery: true,
                     success: function () {
-                        if (window.swagger.ready === true) {
+                        if (form.client.ready === true) {
                             updateForm();
                         }
                     },
@@ -389,10 +398,9 @@
                 if (err) {
                     info = err.message;
                 } else {
-                    if (window.swagger != undefined && window.swagger.ready === true
+                    if (form.client != undefined && form.client.ready === true
                             && form.resource != undefined && form.method != undefined) {
-
-                        var operation = window.swagger.apis[form.resource].operations[form.method];
+                        var operation = form.client.apis[form.resource].operations[form.method];
                         if (operation != undefined) {
                             info += '<b>' + form.resource + '.' + form.method + '</b>';
                             info += '<br /><p align="justify">' + operation.summary + '</p>';
@@ -519,11 +527,10 @@
                 return result;
             }
 
-
             var configNode;
             if (form.apiConfig != undefined) {
                 configNode = RED.nodes.node(form.apiConfig);
-                if (configNode.apiUrl) {
+                if (configNode != undefined && configNode.apiUrl != undefined && !isClientReady(configNode.apiUrl)) {
                     createClient(configNode.apiUrl);
                 }
             }
@@ -532,14 +539,15 @@
 
         },
         oneditprepare: function() {
+
             var form = this;
 
             function updateApiTip() {
                 var tipText = "Choose an existing Swagger API or configure a new one.";
                 if(isClientReady()) {
-                    if (window.swagger.info != null) {
-                        var title = window.swagger.info.title;
-                        var description = window.swagger.info.description;
+                    if (form.client.info != null) {
+                        var title = form.client.info.title;
+                        var description = form.client.info.description;
                         if (title != undefined && title !== "" && description != undefined && description != "") {
                             tipText = "<b>" + title + "</b>: <br/><i>" + description + "</i>";
                         } else {
@@ -548,7 +556,7 @@
                             } else if (description != undefined && description != "") {
                                 tipText = description;
                             } else {
-                                tipText = "Loaded description for <i>" + window.swagger.basePath + "</i>";
+                                tipText = "Loaded description for <i>" + form.client.url + "</i>";
                             }
                         }
                     }
@@ -561,7 +569,7 @@
                 var resources = null;
                 if(isClientReady()) {
                     // Populate available resources
-                    resources = window.swagger.apisArray;
+                    resources = form.client.apisArray;
                 }
                 populateSelectList($("#node-input-resource"), selectedResource, resources, "Choose a Resource", "name");
             }
@@ -569,7 +577,7 @@
             function updateResourceTip(selectedResource) {
                 var tipText = "No help information for the resource selected.";
                 if (isClientReady() && selectedResource != undefined && selectedResource !== "" ) {
-                    var apiResource = window.swagger.apis[selectedResource];
+                    var apiResource = form.client.apis[selectedResource];
                     if (apiResource != undefined) {
                         var description = apiResource.description;
                         if (description != undefined && description !== "") {
@@ -583,21 +591,21 @@
 
             function updateMethodsList(selectedResource, selectedMethod) {
                 var methods = null;
-                if(window.swagger != undefined && window.swagger.isBuilt === true && selectedResource != undefined && selectedResource !== "") {
-                    var apiResource = window.swagger.apis[selectedResource];
+                if(form.client != undefined && form.client.isBuilt === true && selectedResource != undefined && selectedResource !== "") {
+                    var apiResource = form.client.apis[selectedResource];
                     if (apiResource != undefined) {
                         // Populate available Methods
-                        methods = window.swagger.apis[selectedResource].operationsArray;
+                        methods = Object.getOwnPropertyNames(apiResource.operations);
                     }
                 }
-                populateSelectList($("#node-input-method"), selectedMethod, methods, "Choose a Method", "nickname");
+                populateSelectList($("#node-input-method"), selectedMethod, methods, "Choose a Method");
             }
 
             function updateMethodTip(selectedResource, selectedMethod) {
                 var tipText = "No help information for the method selected.";
                 if (isClientReady() && selectedResource != undefined && selectedResource !== ""
                         && selectedMethod != undefined && selectedMethod !== "") {
-                    var apiResource = window.swagger.apis[selectedResource];
+                    var apiResource = form.client.apis[selectedResource];
                     if (apiResource != undefined) {
                         var apiMethod = apiResource.operations[selectedMethod];
                         if (apiMethod != undefined) {
@@ -623,12 +631,12 @@
                 var consumes = null;
                 if (isClientReady() && selectedResource != undefined && selectedResource !== ""
                         && selectedMethod != undefined && selectedMethod !== "") {
-                    var apiResource = window.swagger.apis[selectedResource];
+                    var apiResource = form.client.apis[selectedResource];
                     if (apiResource != undefined) {
                         var apiMethod = apiResource.operations[selectedMethod];
                         if (apiMethod != undefined) {
                             // populate request content types
-                            consumes = window.swagger.apis[selectedResource].operations[selectedMethod].consumes;
+                            consumes = form.client.apis[selectedResource].operations[selectedMethod].consumes;
                         }
                     }
                 }
@@ -639,12 +647,12 @@
                 var produces = null;
                 if (isClientReady() && selectedResource != undefined && selectedResource !== ""
                         && selectedMethod != undefined && selectedMethod !== "") {
-                    var apiResource = window.swagger.apis[selectedResource];
+                    var apiResource = form.client.apis[selectedResource];
                     if (apiResource != undefined) {
                         var apiMethod = apiResource.operations[selectedMethod];
                         if (apiMethod != undefined) {
                             // populate response content types
-                            produces = window.swagger.apis[selectedResource].operations[selectedMethod].produces;
+                            produces = form.client.apis[selectedResource].operations[selectedMethod].produces;
                         }
                     }
                 }
@@ -712,7 +720,7 @@
              * */
             function updateVisibility(resource, method) {
                 // The last check is to avoid situations where there is a trailing swagger client.
-                if (window.swagger != undefined && window.swagger.isBuilt === true && $("#node-input-apiConfig").val() !== "_ADD_") {
+                if (form.client != undefined && form.client.isBuilt === true && $("#node-input-apiConfig").val() !== "_ADD_") {
                     // Show the resource
                     $("#node-input-resource-row").show();
                     // Check method
@@ -754,7 +762,7 @@
             }
 
             function createClient(apiUrl, resource, method, inType, outType) {
-                window.swagger = new SwaggerClient({
+                form.client = new SwaggerClient({
                     url: apiUrl,
                     useJQuery: true,
                     success: function () {
@@ -773,7 +781,7 @@
                 var apiConfig = $("#node-input-apiConfig").val();
                 if (apiConfig) {
                     configNode = RED.nodes.node(apiConfig);
-                    if (configNode && window.swagger && window.swagger.url === configNode.apiUrl && window.swagger.isBuilt === true) {
+                    if (configNode && form.client && form.client.url === configNode.apiUrl && form.client.isBuilt === true) {
                         return true;
                     }
                 }
@@ -789,10 +797,11 @@
                 // The last check is necessary to prevent updates after the form is created.
                 if (apiConfig != undefined && apiConfig !== "_ADD_") {
                     configNode = RED.nodes.node(apiConfig);
+
                     if (configNode != undefined) {
-                        if (window.swagger == undefined || configNode.apiUrl !== window.swagger.url) {
+                        if (form.client == undefined || configNode.apiUrl !== form.client.url) {
                             createClient(configNode.apiUrl);
-                        } else if (configNode.apiUrl === window.swagger.url) {
+                        } else if (configNode.apiUrl === form.client.url) {
                             // it has been preloaded
                             populateForm(configNode.apiUrl, form.resource, form.method, form.inType, form.outType);
                         }
