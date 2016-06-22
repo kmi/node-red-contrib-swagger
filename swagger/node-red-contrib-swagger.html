@@ -391,9 +391,10 @@
                     // We need to return a promise
                     return Promise.resolve(client);
                 }).catch(function (error) {
-                    RED.notify("<strong>Error</strong>: unable to load API description: <br />" + this.url + ". <br />" + error.statusText, "error");
+                    RED.notify("<strong>Error</strong>: unable to load API description for " + apiUrl + "<br /> Reason: <i>" + error + "</i>", "error");
                 });
             }
+
 
             function updateForm(client, resource, method) {
                 var info = '<hr>';
@@ -565,7 +566,7 @@
                     // We need to return a promise
                     return Promise.resolve(client);
                 }).catch(function (error) {
-                    RED.notify("<strong>Error</strong>: unable to load API description: <br />" + this.url + ". <br />" + error.statusText, "error");
+                    RED.notify("<strong>Error</strong>: unable to load API description for " + apiUrl + "<br /> Reason: <i>" + error + "</i>", "error");
                 });
             }
 
