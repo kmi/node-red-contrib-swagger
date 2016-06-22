@@ -368,70 +368,28 @@
         info: function () {
             var form = this;
 
-            function isClientReady(apiUrl) {
-                if (apiUrl && form.client && form.client.url === apiUrl && form.client.isBuilt === true) {
-                    return true;
-                }
-
-                return false;
-            }
-
-//            function getOrCreateClient(apiUrl) {
-//                if (form.client != undefined) {
-//                    form.client = form.client.then(function (client) {
-//                        // Check if it needs to be replaced
-//                        if (client.apiUrl !== apiUrl) {
-//                            client = _createClient(apiUrl);
-//                        }
-//                        return client;
-//                    });
-//                } else {
-//                    // Creating it for the first time
-//                    form.client = _createClient(apiUrl);
-//                }
-//                return form.client;
-//            }
-
-
-
+            // This method uses form.client and form.loadedApiUrl for caching purposes
             function getOrCreateClient(apiUrl) {
-
-                if (form.client) {
-                    newPromise = form.client.then(function (client) {
-                        // Check if it needs to be replaced
-                        if (client.url !== apiUrl) {
-                            result = _createClient(apiUrl).then(function (newClient) {
-                                // Inform the user
-                                RED.notify("Loaded API Description: " + newClient.url, "success");
-                                // We need to return a promise
-                                return Promise.resolve(newClient);
-                            });
-                        } else {
-                            // We need to return a promise
-                            result = Promise.resolve(client);
-                        }
-                        return result;
-                    });
+                if (form.client && form.loadedApiUrl === apiUrl) {
+                    return form.client;
                 } else {
                     // Creating it for the first time
-                    newPromise = _createClient(apiUrl).then(function (client) {
-                        // Inform the user
-                        RED.notify("Loaded API Description: " + client.url, "success");
-                        // We need to return a promise
-                        return Promise.resolve(client);
-                    });
+                    form.client = _createClient(apiUrl);
+                    form.loadedApiUrl = apiUrl;
+                    return form.client;
                 }
-
-                form.client = newPromise;
-                return form.client;
             }
-
 
             function _createClient(apiUrl) {
                 return new SwaggerClient({
                     url: apiUrl,
 //                    useJQuery: true,
                     usePromise: true
+                }).then(function (client) {
+                    // Inform the user
+                    RED.notify("Loaded API Description: " + client.url, "success");
+                    // We need to return a promise
+                    return Promise.resolve(client);
                 }).catch(function (error) {
                     RED.notify("<strong>Error</strong>: unable to load API description: <br />" + this.url + ". <br />" + error.statusText, "error");
                 });
@@ -584,36 +542,16 @@
 
             var form = this;
 
+            // This method uses form.client and form.loadedApiUrl for caching purposes
             function getOrCreateClient(apiUrl) {
-
-                if (form.client) {
-                    newPromise = form.client.then(function (client) {
-                        // Check if it needs to be replaced
-                        if (client.url !== apiUrl) {
-                            result = _createClient(apiUrl).then(function (newClient) {
-                                // Inform the user
-                                RED.notify("Loaded API Description: " + newClient.url, "success");
-                                // We need to return a promise
-                                return Promise.resolve(newClient);
-                            });
-                        } else {
-                            // We need to return a promise
-                            result = Promise.resolve(client);
-                        }
-                        return result;
-                    });
+                if (form.client && form.loadedApiUrl === apiUrl) {
+                    return form.client;
                 } else {
                     // Creating it for the first time
-                    newPromise = _createClient(apiUrl).then(function (client) {
-                        // Inform the user
-                        RED.notify("Loaded API Description: " + client.url, "success");
-                        // We need to return a promise
-                        return Promise.resolve(client);
-                    });
+                    form.client = _createClient(apiUrl);
+                    form.loadedApiUrl = apiUrl;
+                    return form.client;
                 }
-
-                form.client = newPromise;
-                return form.client;
             }
 
             function _createClient(apiUrl) {
@@ -621,6 +559,11 @@
                     url: apiUrl,
 //                    useJQuery: true,
                     usePromise: true
+                }).then(function (client) {
+                    // Inform the user
+                    RED.notify("Loaded API Description: " + client.url, "success");
+                    // We need to return a promise
+                    return Promise.resolve(client);
                 }).catch(function (error) {
                     RED.notify("<strong>Error</strong>: unable to load API description: <br />" + this.url + ". <br />" + error.statusText, "error");
                 });
@@ -637,21 +580,20 @@
                 }
 
                 return apiUrl;
-
             }
 
             function updateApiTip(client) {
                 var tipText = "Choose an existing Swagger API or configure a new one.";
 
-                if (client != undefined && client.info != null) {
+                if (client && client.info) {
                     var title = client.info.title;
                     var description = client.info.description;
-                    if (title != undefined && title !== "" && description != undefined && description != "") {
+                    if (title && description) {
                         tipText = "<b>" + title + "</b>: <br/><i>" + description + "</i>";
                     } else {
-                        if (title != undefined && title !== "") {
+                        if (title) {
                             tipText = title;
-                        } else if (description != undefined && description != "") {
+                        } else if (description) {
                             tipText = description;
                         } else {
                             tipText = "Loaded description for <i>" + client.url + "</i>";
@@ -663,7 +605,7 @@
             }
 
             function updateResourcesList(client, selectedResource) {
-                if (client != undefined) {
+                if (client) {
                     populateSelectList($("#node-input-resource"), selectedResource, client.apisArray, "Choose a Resource", "name");
                 }
             }
@@ -671,11 +613,11 @@
             function updateResourceTip(client, selectedResource) {
 
                 var tipText = "No help information for the resource selected.";
-                if (client != undefined && selectedResource != undefined && selectedResource !== "") {
+                if (client && selectedResource) {
                     var apiResource = client.apis[selectedResource];
-                    if (apiResource != undefined) {
+                    if (apiResource) {
                         var description = apiResource.description;
-                        if (description != undefined && description !== "") {
+                        if (description) {
                             tipText = description;
                         }
                     }
@@ -687,9 +629,9 @@
 
             function updateMethodsList(client, selectedResource, selectedMethod) {
                 var methods = null;
-                if (client != undefined && selectedResource != undefined && selectedResource !== "") {
+                if (client && selectedResource) {
                     var apiResource = client.apis[selectedResource];
-                    if (apiResource != undefined) {
+                    if (apiResource) {
                         // Populate available Methods
                         methods = Object.getOwnPropertyNames(apiResource.operations);
                         populateSelectList($("#node-input-method"), selectedMethod, methods, "Choose a Method");
@@ -699,18 +641,17 @@
 
             function updateMethodTip(client, selectedResource, selectedMethod) {
                 var tipText = "No help information for the method selected.";
-                if (client != undefined && selectedResource != undefined && selectedResource !== "" && selectedMethod != undefined
-                        && selectedMethod !== "") {
+                if (client && selectedResource && selectedMethod) {
                     var apiResource = client.apis[selectedResource];
-                    if (apiResource != undefined) {
+                    if (apiResource) {
                         var apiMethod = apiResource.operations[selectedMethod];
-                        if (apiMethod != undefined) {
+                        if (apiMethod) {
                             var summary = apiMethod.summary;
                             var notes = apiMethod.notes;
-                            if (summary != undefined && summary !== "" && notes != undefined && notes !== "") {
+                            if (summary && notes) {
                                 tipText = "<b>" + summary + "</b>: <br/><i>" + notes + "</i>";
                             } else {
-                                if (summary != null) {
+                                if (summary) {
                                     tipText = summary;
                                 } else {
                                     tipText = notes;
@@ -726,14 +667,13 @@
 
             function updateRequestTypes(client, selectedResource, selectedMethod, inType) {
                 var consumes = null;
-                if (client != undefined && selectedResource != undefined && selectedResource !== ""
-                        && selectedMethod != undefined && selectedMethod !== "") {
+                if (client && selectedResource && selectedMethod) {
                     var apiResource = client.apis[selectedResource];
-                    if (apiResource != undefined) {
+                    if (apiResource) {
                         var apiMethod = apiResource.operations[selectedMethod];
-                        if (apiMethod != undefined) {
+                        if (apiMethod) {
                             // populate request content types
-                            consumes = client.apis[selectedResource].operations[selectedMethod].consumes;
+                            consumes = apiMethod.consumes;
                         }
                     }
                 }
@@ -742,17 +682,17 @@
 
             function updateResponseTypes(client, selectedResource, selectedMethod, outType) {
                 var produces = null;
-                if (client != undefined && selectedResource != undefined && selectedResource !== ""
-                        && selectedMethod != undefined && selectedMethod !== "") {
+                if (client && selectedResource && selectedMethod) {
                     var apiResource = client.apis[selectedResource];
-                    if (apiResource != undefined) {
+                    if (apiResource) {
                         var apiMethod = apiResource.operations[selectedMethod];
-                        if (apiMethod != undefined) {
+                        if (apiMethod) {
                             // populate response content types
-                            produces = client.apis[selectedResource].operations[selectedMethod].produces;
+                            produces = apiMethod.produces;
                         }
                     }
                 }
+
                 populateSelectList($("#node-input-outType"), outType, produces, "Choose a Content Type")
             }
 
@@ -779,7 +719,7 @@
                             .attr("value", "_ADD_")
                             .text(helpText);
 
-                    if (selectedValue == undefined || selectedValue === "") {
+                    if (!selectedValue) {
                         // add the default select option
                         option.prop("selected", true)
                     }
@@ -787,10 +727,10 @@
                     jQuerySelector.append(option);
 
                     // Add all the values
-                    if (availableValues != undefined) {
+                    if (availableValues) {
                         for (var i = 0; i < availableValues.length; i++) {
                             var value;
-                            if (valueProperty != undefined && valueProperty !== "") {
+                            if (valueProperty) {
                                 value = availableValues[i][valueProperty];
                             } else {
                                 value = availableValues[i];
@@ -819,17 +759,15 @@
                 // This check is to avoid situations where there is a trailing swagger client.
                 if ( $("#node-input-apiConfig").val() !== "_ADD_") {
                     // Show the resource
-                    $(
-                            "#node-input-resource-row").show();
+                    $("#node-input-resource-row").show();
                     // Check method
                     var resource = $("#node-input-resource option:selected").val();
-                    if
-                    (resource != undefined && resource !== "_ADD_") {
+                    if (resource && resource !== "_ADD_") {
                         // Show the method
                         $("#node-input-method-row").show();
                         // Check content types
                         var method = $("#node-input-method option:selected").val();
-                        if (method != undefined && method !== "_ADD_") {
+                        if (method && method !== "_ADD_") {
                             // Deal with content types
                             if ($("#node-input-inType option").length > 2) {
                                 // Show request content type
@@ -865,14 +803,16 @@
             // API Updated
             $("#node-input-apiConfig"). change(function(){
                 var apiUrl = getApiUrl();
-                if (apiUrl != undefined) {
+
+                if (apiUrl) {
+                    var apiChanged = (apiUrl !== form.loadedApiUrl);
                     getOrCreateClient(apiUrl).then(function (client) {
-                        if (client != undefined) {
+                        if (!apiChanged) {
                             populateForm(client, form.resource, form.method, form.inType, form.outType);
                         } else {
-                            populateForm();
+                            populateForm(client);
                         }
-                    }).done();
+                    });
                 } else {
                     // Empty form
                     populateForm();
@@ -883,16 +823,15 @@
             $("#node-input-resource"). change(function() {
                 var selectedResource = $("#node-input-resource option:selected").val();
                 var apiUrl = getApiUrl();
-                if (selectedResource != undefined && selectedResource !== "") {
+                if (selectedResource) {
                     getOrCreateClient(apiUrl).then(function (client) {
-                        if (client != undefined) {
-                            updateResourceTip(
-                                    client, selectedResource);
-                            updateMethodsList(client, selectedResource);
-                        }
-                    }).done();
+                        updateResourceTip(client, selectedResource);
+                        updateMethodsList(client, selectedResource);
+                        updateVisibility();
+                    });
+                } else {
+                    updateVisibility();
                 }
-                updateVisibility();
             });
 
             // Method Updated
@@ -900,18 +839,17 @@
                 var apiUrl = getApiUrl();
                 var selectedResource = $("#node-input-resource option:selected").val();
                 var selectedMethod = $("#node-input-method option:selected").val();
-                if (selectedResource != undefined &&
-                        selectedResource !== "" && selectedMethod != undefined &&
-                        selectedMethod !== "") {
+                if (selectedResource && selectedMethod) {
                     getOrCreateClient(apiUrl).then(function (client) {
-                        if (client != undefined) {
-                            updateMethodTip(client, selectedResource, selectedMethod);
-                            updateRequestTypes(client, selectedResource, selectedMethod);
-                            updateResponseTypes(client, selectedResource, selectedMethod);
-                        }
-                    }).done();
+                        updateMethodTip(client, selectedResource, selectedMethod);
+                        updateRequestTypes(client, selectedResource, selectedMethod);
+                        updateResponseTypes(client, selectedResource, selectedMethod);
+                        updateVisibility();
+                    });
+                } else {
+                    updateVisibility();
                 }
-                updateVisibility();
+
             });
 
             if (form.apiConfig == undefined) {
