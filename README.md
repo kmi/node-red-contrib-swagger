@@ -53,7 +53,7 @@ We expect this change to be long-standing and therefore won't expect such a disr
 
 ### Features
 Currently the node provides support for:
- - Parsing and invoking Swagger 1.0 and 1.2 descriptions
+ - Parsing and invoking Swagger 1.0, 1.2 and 2.0 descriptions (aka OpenAPI specification)
  - Content negotiation both for Request and Response content types
  - Authentication via Basic HTTP Auth and API Key 
  - Invocation of APIs (except those with other non-supported authentication mechanisms).
@@ -61,10 +61,6 @@ Currently the node provides support for:
  - Feedback information about the status of the remote API
  - More detailed dynamic documentation of the API being used by the node so as to better help users in
  figuring out what the request message should look like. Selecting the node should populate the info tab with detailed documentation
- 
-### Issues
-Currently the node presents one known issue due to an underlying library being used.
-- The parsing of Authentication details does not seem to be done correctly by the swagger-library and therefore authentication details specified at a resource level will not be adequately detected. We expect a solution will soon be implemented at the level of the [Swagger javascript client](https://github.com/wordnik/swagger-js) which would resolve the problem altogether.
 
 ### Future Features
 We shall be providing the following functionality soon:
