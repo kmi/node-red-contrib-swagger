@@ -20,5 +20,9 @@
         "name": "Carlos Pedrinaci",
         "email": "carlos.pedrinaci@open.ac.uk",
         "url": "http://www.cpedrinaci.net"
+    },
+    "scripts": {
+        "postinstall": "browserify ./swagger/adapter.js -o ./swagger/client-adapter.js"
     }
+
 }
