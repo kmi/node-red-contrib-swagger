@@ -148,9 +148,11 @@ module.exports = function(RED) {
                 var scheme = schemes[0];
 
                 // ensure we have the same kind of credentials necessary
-                var authType = node.credentials.authType;
-                var user = node.credentials.user;
-                var password = node.credentials.password;
+                // must handle the case of scheme specified but no credentials
+                var credentials = node.credentials || {};
+                var authType = credentials.authType;
+                var user = credentials.user;
+                var password = credentials.password;
 
                 if (authType != undefined && scheme != undefined && authType === scheme.type) {
                     // Add the credentials to the client
