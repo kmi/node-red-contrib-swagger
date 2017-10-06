@@ -212,10 +212,10 @@ module.exports = function(RED) {
                 node.warn("API successfully invoked but no response obtained.");
             } else {
                 if (response.hasOwnProperty("status")) {
-                    msg.status = response.status;
+                    msg.statusCode = response.status;
                 } else {
                     // Should not occur in principle
-                    msg.status = 500;
+                    msg.statusCode = 500;
                 }
 
                 if (response.hasOwnProperty("data")) {
@@ -243,12 +243,12 @@ module.exports = function(RED) {
                 }
             }
 
-            console.log('msg -->', msg);
             node.send(msg);
         }
 
         function processError(response) {
             var msg = this.msg || {};
+            console.log('response --> ', response);
             node.errorCount ++;
             if (response == undefined ) {
                 // In principle this branch should not be executed but in case
@@ -258,18 +258,20 @@ module.exports = function(RED) {
                     msg.status = response.status;
                 } else {
                     // Should not occur in principle
-                    msg.status = 500;
+                    msg.statusCode = 500;
                 }
 
                 if (response.hasOwnProperty("data")) {
                     msg.payload = response.data.toString();
                 } else {
-                    msg.payload = {};
+                    msg.payload = {
+                        error: response
+                    };
                 }
 
                 node.warn("API invocation returned an error. Status: " + msg.status + " Message: " + msg.payload.toString());
             }
-            console.log('error -->', msg);
+            // console.log('error -->', msg);
             node.send(msg);
         }
 
@@ -316,7 +318,7 @@ module.exports = function(RED) {
                         }
 
                         if(msg.req.params) {
-                            params = msg.req.params;
+                            params = Object.assign(params, msg.req.params);
                         }
 
                         // invoke
