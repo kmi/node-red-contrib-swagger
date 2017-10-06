@@ -94,11 +94,13 @@ module.exports = function(RED) {
         }
 
         // Invoke
-        this.invoke = function (resource, method, params, opts, responseCallback, errorCallback) {
+        this.invoke = function (resource, method, params, opts, responseCallback, errorCallback, msg) {
             if (node.clientReady) {
                 // Deal with authorisation if necessary
                 setupAuthentication(resource, method);
-                node.swaggerClient['apis'][resource][method](params, opts, responseCallback, errorCallback);
+                // console.log(resource, method, params, opts, responseCallback, errorCallback);
+                console.log('params -->', params);
+                node.swaggerClient['apis'][resource][method](params, opts, responseCallback.bind({msg: msg}), errorCallback);
 
             } else {
                 // Client is not ready, send undefined
@@ -200,8 +202,11 @@ module.exports = function(RED) {
         var node = this;
 
         function processResponse(response) {
-            var msg = {};
+            var msg = this.msg || {};
+
             node.errorCount = 0;
+
+            console.log('response -->', response);
             if (response == undefined ) {
                 // In principle this branch should not be executed but in case
                 node.warn("API successfully invoked but no response obtained.");
@@ -237,6 +242,8 @@ module.exports = function(RED) {
                     msg.payload = {};
                 }
             }
+
+            console.log('msg -->', msg);
             node.send(msg);
         }
 
@@ -262,6 +269,7 @@ module.exports = function(RED) {
 
                 node.warn("API invocation returned an error. Status: " + msg.status + " Message: " + msg.payload.toString());
             }
+            console.log('error -->', msg);
             node.send(msg);
         }
 
@@ -307,8 +315,12 @@ module.exports = function(RED) {
                             }
                         }
 
+                        if(msg.req.params) {
+                            params = msg.req.params;
+                        }
+
                         // invoke
-                        node.apiConfig.invoke(node.resource, node.method, params, opts, processResponse, processError);
+                        node.apiConfig.invoke(node.resource, node.method, params, opts, processResponse, processError, msg);
 
                         // Update status
                         if (node.errorCount === 0) {

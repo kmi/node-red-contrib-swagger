@@ -1,18 +1,24 @@
 {
-    "name"          : "node-red-contrib-swagger",
-    "version"       : "0.4.0",
-    "description"   : "A Node-RED node able to invoke Web APIs generically based on a Swagger description",
-    "dependencies"  : {
-        "swagger-client"   : "2.1.15"
+    "name": "node-red-contrib-swagger",
+    "version": "0.4.0",
+    "description": "A Node-RED node able to invoke Web APIs generically based on a Swagger description",
+    "dependencies": {
+        "swagger-client": "2.1.15"
     },
-    "repository" : {
-        "type":"git",
-        "url":"https://github.com/kmi/node-red-contrib-swagger"
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/kmi/node-red-contrib-swagger"
     },
     "license": "Apache",
-    "keywords": [ "node-red", "swagger", "web api", "web service", "client" ],
-    "node-red"      : {
-        "nodes"     : {
+    "keywords": [
+        "node-red",
+        "swagger",
+        "web api",
+        "web service",
+        "client"
+    ],
+    "node-red": {
+        "nodes": {
             "swagger": "swagger/node-red-contrib-swagger.js"
         }
     },
@@ -24,5 +30,4 @@
     "scripts": {
         "postinstall": "browserify ./swagger/adapter.js -o ./swagger/client-adapter.js"
     }
-
 }
