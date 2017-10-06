@@ -100,7 +100,7 @@ module.exports = function(RED) {
                 setupAuthentication(resource, method);
                 // console.log(resource, method, params, opts, responseCallback, errorCallback);
                 console.log('params -->', params);
-                node.swaggerClient['apis'][resource][method](params, opts, responseCallback.bind({msg: msg}), errorCallback);
+                node.swaggerClient['apis'][resource][method](params, opts, responseCallback.bind({msg: msg}), errorCallback.bind({msg: msg}));
 
             } else {
                 // Client is not ready, send undefined
@@ -248,7 +248,7 @@ module.exports = function(RED) {
         }
 
         function processError(response) {
-            var msg = {};
+            var msg = this.msg || {};
             node.errorCount ++;
             if (response == undefined ) {
                 // In principle this branch should not be executed but in case
