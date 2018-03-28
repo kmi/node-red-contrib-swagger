@@ -317,7 +317,7 @@ module.exports = function(RED) {
                             }
                         }
 
-                        if(msg.req.params) {
+                        if(msg.req && msg.req.params) {
                             params = Object.assign(params, msg.req.params);
                         }
 
