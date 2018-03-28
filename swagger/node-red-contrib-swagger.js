@@ -94,11 +94,13 @@ module.exports = function(RED) {
         }
 
         // Invoke
-        this.invoke = function (resource, method, params, opts, responseCallback, errorCallback) {
+        this.invoke = function (resource, method, params, opts, responseCallback, errorCallback, msg) {
             if (node.clientReady) {
                 // Deal with authorisation if necessary
                 setupAuthentication(resource, method);
-                node.swaggerClient['apis'][resource][method](params, opts, responseCallback, errorCallback);
+                // console.log(resource, method, params, opts, responseCallback, errorCallback);
+                console.log('params -->', params);
+                node.swaggerClient['apis'][resource][method](params, opts, responseCallback.bind({msg: msg}), errorCallback.bind({msg: msg}));
 
             } else {
                 // Client is not ready, send undefined
@@ -200,17 +202,20 @@ module.exports = function(RED) {
         var node = this;
 
         function processResponse(response) {
-            var msg = {};
+            var msg = this.msg || {};
+
             node.errorCount = 0;
+
+            console.log('response -->', response);
             if (response == undefined ) {
                 // In principle this branch should not be executed but in case
                 node.warn("API successfully invoked but no response obtained.");
             } else {
                 if (response.hasOwnProperty("status")) {
-                    msg.status = response.status;
+                    msg.statusCode = response.status;
                 } else {
                     // Should not occur in principle
-                    msg.status = 500;
+                    msg.statusCode = 500;
                 }
 
                 if (response.hasOwnProperty("data")) {
@@ -237,11 +242,13 @@ module.exports = function(RED) {
                     msg.payload = {};
                 }
             }
+
             node.send(msg);
         }
 
         function processError(response) {
-            var msg = {};
+            var msg = this.msg || {};
+            console.log('response --> ', response);
             node.errorCount ++;
             if (response == undefined ) {
                 // In principle this branch should not be executed but in case
@@ -251,17 +258,20 @@ module.exports = function(RED) {
                     msg.status = response.status;
                 } else {
                     // Should not occur in principle
-                    msg.status = 500;
+                    msg.statusCode = 500;
                 }
 
                 if (response.hasOwnProperty("data")) {
                     msg.payload = response.data.toString();
                 } else {
-                    msg.payload = {};
+                    msg.payload = {
+                        error: response
+                    };
                 }
 
                 node.warn("API invocation returned an error. Status: " + msg.status + " Message: " + msg.payload.toString());
             }
+            // console.log('error -->', msg);
             node.send(msg);
         }
 
@@ -307,8 +317,12 @@ module.exports = function(RED) {
                             }
                         }
 
+                        if(msg.req && msg.req.params) {
+                            params = Object.assign(params, msg.req.params);
+                        }
+
                         // invoke
-                        node.apiConfig.invoke(node.resource, node.method, params, opts, processResponse, processError);
+                        node.apiConfig.invoke(node.resource, node.method, params, opts, processResponse, processError, msg);
 
                         // Update status
                         if (node.errorCount === 0) {
